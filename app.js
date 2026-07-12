@@ -358,19 +358,36 @@ document.addEventListener('DOMContentLoaded', () => {
     resetProgress();
   });
 
-  // All Cobalt calls go through our server function
+  // All Cobalt calls go through our server function which proxies the file
   async function fetchFromCobalt(payload) {
     const response = await fetch("https://velo-downloader-production.up.railway.app/download", {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(180000)
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const contentType = response.headers.get('content-type') || '';
+
+    // Server streamed the file — create blob URL
+    if (!contentType.includes('application/json')) {
+      const blob = await response.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const disposition = response.headers.get('content-disposition') || '';
+      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'download';
+      const fileSize = parseInt(response.headers.get('content-length') || '0', 10);
+      return { url: objUrl, filename, fileSize, status: 'stream', _isBlob: true };
+    }
+
+    // Server returned JSON (error or tunnel URL)
     const data = await response.json();
-    if (data.error) throw new Error(data.error);
-    if (!data.url) throw new Error('No URL in response');
-    return data;
+    if (data.error) throw new Error(data.error?.detail ? `${data.error}: ${data.detail}` : data.error);
+    if (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect' || data.status === 'picker') {
+      return data;
+    }
+    throw new Error('No downloadable URL in response');
   }
 
   // Render download option lists
@@ -963,17 +980,7 @@ document.addEventListener('DOMContentLoaded', () => {
     progressStatus.textContent = `Connecting to server...`;
 
     if (realDownloadUrl) {
-      const isCrossOrigin = !realDownloadUrl.startsWith('blob:') && !realDownloadUrl.startsWith('data:');
-      if (isCrossOrigin) {
-        // Cross-origin tunnel URL: use hidden iframe to trigger download
-        const iframe = document.createElement('iframe');
-        iframe.style.display = 'none';
-        iframe.src = realDownloadUrl;
-        document.body.appendChild(iframe);
-        setTimeout(() => document.body.removeChild(iframe), 60000);
-      } else {
-        downloadViaBlob(realDownloadUrl, `${fileLabel}`);
-      }
+      downloadViaBlob(realDownloadUrl, `${fileLabel}`);
     } else {
       triggerActualDeviceDownload(qualityName, extension);
     }
