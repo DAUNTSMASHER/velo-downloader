@@ -375,48 +375,13 @@ document.addEventListener('DOMContentLoaded', () => {
     return data;
   }
 
-  // Download: Railway POST proxies the file — fetch as blob, then download
+  // Download: navigate directly to Railway /dl — server streams the file, browser saves it
   async function fetchAndDownloadCobalt(inputUrl, quality) {
     try {
-      const isAudio = quality === 'audio';
-      const payload = {
-        url: inputUrl,
-        videoQuality: isAudio ? '1080' : (quality || '1080'),
-        ...(isAudio ? { audioOnly: true } : {})
-      };
-
-      const response = await fetch(BACKEND + "/download", {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(300000)
-      });
-
-      const contentType = response.headers.get('content-type') || '';
-
-      // Read JSON error body even on non-ok status
-      if (!response.ok || contentType.includes('application/json')) {
-        let errMsg = `Server HTTP ${response.status}`;
-        try { const errData = await response.json(); errMsg = errData.error || errData.detail || errMsg; } catch {}
-        throw new Error(errMsg);
-      }
-
-      const blob = await response.blob();
-      if (blob.size === 0) throw new Error("Download returned empty file (0 bytes)");
-
-      const objUrl = URL.createObjectURL(blob);
-      const disposition = response.headers.get('content-disposition') || '';
-      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'download';
-
-      const a = document.createElement('a');
-      a.href = objUrl;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objUrl);
+      const q = quality === 'audio' ? '1080' : (quality || '1080');
+      const dlUrl = BACKEND + "/dl?url=" + encodeURIComponent(inputUrl) + "&quality=" + q;
+      const win = window.open(dlUrl, '_blank');
+      if (!win || win.closed || typeof win.closed === 'undefined') window.location.href = dlUrl;
     } catch (err) {
       const errEl = document.getElementById('download-error');
       const errText = document.getElementById('download-error-text');

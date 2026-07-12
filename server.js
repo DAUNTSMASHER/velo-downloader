@@ -83,6 +83,34 @@ app.post("/download", async (req, res) => {
   } catch { res.end(); }
 });
 
+// GET /dl — navigates here, server proxies the file, browser downloads
+app.get("/dl", async (req, res) => {
+  const sourceUrl = req.query.url;
+  const quality = req.query.quality || "1080";
+  if (!sourceUrl) return res.status(400).send("Missing ?url=");
+  const payload = { url: sourceUrl, videoQuality: quality, filenameStyle: "basic", disableMetadata: false };
+  let data;
+  for (const ep of ENDPOINTS) {
+    try { data = await tryCobalt(ep, payload); break; } catch {}
+  }
+  if (!data?.url) return res.status(502).send("All endpoints failed");
+  const fileRes = await fetch(data.url);
+  if (!fileRes.ok) return res.status(502).send("File unavailable");
+  res.set({
+    "Content-Type": fileRes.headers.get("content-type") || "application/octet-stream",
+    "Content-Disposition": fileRes.headers.get("content-disposition") || `attachment; filename="${data.filename || "video.mp4"}"`,
+    "Cache-Control": "no-cache"
+  });
+  const reader = fileRes.body.getReader();
+  try {
+    while (true) {
+      const { done, value } = await reader.read();
+      if (done) { res.end(); break; }
+      res.write(value);
+    }
+  } catch { res.end(); }
+});
+
 app.get("/", (_, res) => res.send("Downloader backend is running."));
 app.get("/health", (_, res) => res.send("OK"));
 
