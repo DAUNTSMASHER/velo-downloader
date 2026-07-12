@@ -4,6 +4,17 @@ import fetch from 'node-fetch';
 const app = express();
 app.use(express.json());
 
+// CORS middleware for cross-origin requests from frontend
+app.use((req, res, next) => {
+  const origin = req.headers.origin || '*';
+  res.set('Access-Control-Allow-Origin', origin);
+  res.set('Access-Control-Allow-Methods', 'GET, POST, OPTIONS');
+  res.set('Access-Control-Allow-Headers', 'Content-Type, Accept');
+  res.set('Access-Control-Max-Age', '86400');
+  if (req.method === 'OPTIONS') return res.status(204).end();
+  next();
+});
+
 const ENDPOINTS = [
   "https://cobaltapi.kittycat.boo/",
   "https://cobaltapi.squair.xyz/",
