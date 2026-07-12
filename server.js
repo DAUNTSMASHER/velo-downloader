@@ -1,6 +1,4 @@
 import express from 'express';
-import { Readable } from 'stream';
-import { pipeline } from 'stream/promises';
 
 const app = express();
 app.use(express.json());
@@ -39,23 +37,13 @@ async function tryCobalt(ep, payload) {
 app.post("/download", async (req, res) => {
   const { url, videoQuality = "1080" } = req.body;
   if (!url) return res.status(400).json({ error: "URL required" });
-
   const payload = { url, videoQuality, filenameStyle: "basic", disableMetadata: false };
   let data;
   for (const ep of ENDPOINTS) {
     try { data = await tryCobalt(ep, payload); break; } catch {}
   }
   if (!data?.url) return res.status(502).json({ error: "All endpoints failed" });
-
-  const fileRes = await fetch(data.url);
-  if (!fileRes.ok) return res.status(502).json({ error: "File fetch failed" });
-
-  res.set({
-    "Content-Type": fileRes.headers.get("content-type") || "application/octet-stream",
-    "Content-Disposition": fileRes.headers.get("content-disposition") || `attachment; filename="${data.filename || "video.mp4"}"`,
-    "Cache-Control": "no-cache"
-  });
-  await pipeline(Readable.fromWeb(fileRes.body), res);
+  res.json(data);
 });
 
 app.get("/", (_, res) => res.send("Downloader backend is running."));
