@@ -20,7 +20,7 @@
   --color-success: #10b981;
   --color-error: #ef4444;
   
-  /* Platform dynamic properties (Defaults to Auto/General) */
+  /* Platform dynamic properties */
   --platform-accent: #a855f7;
   --platform-glow: rgba(168, 85, 247, 0.25);
   
@@ -192,6 +192,49 @@ body {
   letter-spacing: -0.01em;
 }
 
+/* --- Media Tabs Navigation --- */
+.tabs-nav {
+  display: flex;
+  background: rgba(0, 0, 0, 0.25);
+  border: 1px solid var(--border-light);
+  border-radius: 16px;
+  padding: 6px;
+  gap: 6px;
+  width: fit-content;
+  margin: 0 auto;
+}
+
+.tab-btn {
+  background: transparent;
+  border: none;
+  color: var(--text-secondary);
+  padding: 10px 24px;
+  font-family: var(--font-sans);
+  font-weight: 600;
+  font-size: 0.95rem;
+  border-radius: 12px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  transition: all var(--transition-fast);
+}
+
+.tab-btn:hover {
+  color: var(--text-primary);
+  background: rgba(255, 255, 255, 0.03);
+}
+
+.tab-btn.active {
+  background: var(--platform-accent);
+  color: #ffffff;
+  box-shadow: 0 4px 15px var(--platform-glow);
+}
+
+.tab-icon {
+  opacity: 0.85;
+}
+
 /* --- Platform Selector --- */
 .platform-selector-wrapper {
   display: flex;
@@ -235,7 +278,7 @@ body {
   transform: translateY(-2px);
 }
 
-/* Platform Specific Accents */
+/* Platform Accents */
 .platform-btn.active[data-platform="auto"], 
 .platform-btn:hover[data-platform="auto"] {
   border-color: #a855f7;
@@ -262,13 +305,6 @@ body {
   border-color: #f43f5e;
   background: rgba(244, 63, 94, 0.1);
   color: #fda4af;
-}
-
-.platform-btn.active[data-platform="twitter"],
-.platform-btn:hover[data-platform="twitter"] {
-  border-color: #ffffff;
-  background: rgba(255, 255, 255, 0.08);
-  color: #ffffff;
 }
 
 .platform-btn.active[data-platform="facebook"],
@@ -321,7 +357,7 @@ body {
               inset 0 1px 0 rgba(255, 255, 255, 0.05);
 }
 
-/* Floating Label Logic */
+/* Floating Label */
 .input-label {
   position: absolute;
   left: 20px;
@@ -331,6 +367,10 @@ body {
   font-size: 1.05rem;
   pointer-events: none;
   transition: all var(--transition-fast);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: calc(100% - 70px);
 }
 
 .url-input:focus ~ .input-label,
@@ -339,12 +379,12 @@ body {
   transform: translateY(-50%) scale(0.85);
   left: 15px;
   padding: 0 6px;
-  background: #0f0a28; /* Solid bg block for the label cutout look */
+  background: #0f0a28;
   color: var(--platform-accent);
   font-weight: 600;
 }
 
-/* Clear Button inside Input */
+/* Clear Button */
 .clear-btn {
   position: absolute;
   right: 16px;
@@ -374,7 +414,7 @@ body {
   pointer-events: auto;
 }
 
-/* Fetch Action Button */
+/* Action Button */
 .fetch-btn {
   background: var(--color-accent-grad);
   border: none;
@@ -393,6 +433,7 @@ body {
   box-shadow: 0 4px 20px rgba(168, 85, 247, 0.3);
   position: relative;
   overflow: hidden;
+  white-space: nowrap;
 }
 
 .fetch-btn::before {
@@ -419,7 +460,6 @@ body {
   transform: translateY(1px);
 }
 
-/* Loading Spinner inside Button */
 .btn-loader {
   display: flex;
   align-items: center;
@@ -477,7 +517,6 @@ body {
   }
 }
 
-/* Preview Column */
 .media-preview-container {
   display: flex;
   flex-direction: column;
@@ -554,7 +593,7 @@ body {
   background: var(--platform-glow);
 }
 
-/* Download Options Column */
+/* Download Options */
 .download-options {
   display: flex;
   flex-direction: column;
@@ -692,6 +731,100 @@ body {
   color: #ef4444;
 }
 
+/* --- SEO Optimised Articles Section --- */
+.seo-section {
+  background: rgba(18, 14, 36, 0.25);
+  backdrop-filter: blur(10px);
+  -webkit-backdrop-filter: blur(10px);
+  border: 1px solid var(--border-light);
+  border-radius: 24px;
+  padding: 36px;
+  margin-top: 12px;
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  box-shadow: 0 10px 30px rgba(0, 0, 0, 0.2);
+}
+
+.seo-title {
+  font-size: 1.5rem;
+  font-weight: 800;
+  letter-spacing: -0.02em;
+}
+
+.seo-lead {
+  color: var(--text-secondary);
+  font-size: 1.05rem;
+  line-height: 1.6;
+}
+
+.seo-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 640px) {
+  .seo-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
+.seo-card {
+  background: rgba(255, 255, 255, 0.01);
+  border: 1px solid rgba(255, 255, 255, 0.04);
+  border-radius: 16px;
+  padding: 24px;
+}
+
+.seo-subtitle {
+  font-size: 1.15rem;
+  font-weight: 700;
+  margin-bottom: 10px;
+}
+
+.seo-card p {
+  color: var(--text-secondary);
+  font-size: 0.95rem;
+  line-height: 1.6;
+}
+
+.seo-details-block {
+  border-top: 1px dashed var(--border-light);
+  padding-top: 24px;
+  margin-top: 4px;
+}
+
+.seo-details-block ul {
+  list-style-type: none;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px 28px;
+  margin-top: 16px;
+}
+
+@media (max-width: 640px) {
+  .seo-details-block ul {
+    grid-template-columns: 1fr;
+  }
+}
+
+.seo-details-block li {
+  position: relative;
+  padding-left: 24px;
+  font-size: 0.95rem;
+  color: var(--text-secondary);
+  line-height: 1.4;
+}
+
+.seo-details-block li::before {
+  content: '✓';
+  position: absolute;
+  left: 0;
+  color: var(--color-success);
+  font-weight: 800;
+}
+
 /* --- Features Grid --- */
 .features-grid {
   display: grid;
@@ -776,7 +909,7 @@ body {
   color: var(--text-secondary);
 }
 
-/* --- Toasts Notifications --- */
+/* --- Toasts --- */
 .toast-container {
   position: fixed;
   top: 24px;
