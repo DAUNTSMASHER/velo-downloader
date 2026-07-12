@@ -363,22 +363,30 @@ document.addEventListener('DOMContentLoaded', () => {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(30000)
+      signal: AbortSignal.timeout(120000)
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const contentType = response.headers.get('content-type') || '';
+
+    // Server streamed the file directly — create blob URL and download
+    if (!contentType.includes('application/json')) {
+      const blob = await response.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const disposition = response.headers.get('content-disposition') || '';
+      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'download';
+      const fileSize = parseInt(response.headers.get('content-length') || '0', 10);
+      return { url: objUrl, filename, fileSize, status: 'stream', _isBlob: true };
+    }
+
+    // Server returned JSON (file proxy failed) — return tunnel URL
     const data = await response.json();
     if (data.error) throw new Error(data.error);
-    if (!data.url) throw new Error('No URL in response');
-    // Fetch the tunnel URL directly (CORS is open) and create a blob
-    const fileRes = await fetch(data.url);
-    if (!fileRes.ok) throw new Error(`Tunnel fetch HTTP ${fileRes.status}`);
-    const blob = await fileRes.blob();
-    const objUrl = URL.createObjectURL(blob);
-    const disposition = fileRes.headers.get('content-disposition') || '';
-    const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-    const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : (data.filename || 'download');
-    const fileSize = parseInt(fileRes.headers.get('content-length') || fileRes.headers.get('Estimated-Content-Length') || '0', 10);
-    return { url: objUrl, filename, fileSize, status: 'stream', _isBlob: true };
+    if (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect' || data.status === 'picker') {
+      return data;
+    }
+    throw new Error('No downloadable URL in response');
   }
 
   // Render download option lists

@@ -1,5 +1,6 @@
 import express from 'express';
-import fetch from 'node-fetch';
+import { Readable } from 'stream';
+import { pipeline } from 'stream/promises';
 
 const app = express();
 app.use(express.json());
@@ -45,7 +46,16 @@ app.post("/download", async (req, res) => {
     try { data = await tryCobalt(ep, payload); break; } catch {}
   }
   if (!data?.url) return res.status(502).json({ error: "All endpoints failed" });
-  res.json(data);
+
+  const fileRes = await fetch(data.url);
+  if (!fileRes.ok) return res.status(502).json({ error: "File fetch failed" });
+
+  res.set({
+    "Content-Type": fileRes.headers.get("content-type") || "application/octet-stream",
+    "Content-Disposition": fileRes.headers.get("content-disposition") || `attachment; filename="${data.filename || "video.mp4"}"`,
+    "Cache-Control": "no-cache"
+  });
+  await pipeline(Readable.fromWeb(fileRes.body), res);
 });
 
 app.get("/", (_, res) => res.send("Downloader backend is running."));
