@@ -360,9 +360,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
   const BACKEND = "https://velo-downloader-production.up.railway.app";
 
-  // Cobalt API call through Railway (server-side, avoids browser integrity checks)
+  // Get metadata from Railway (returns JSON)
   async function fetchFromCobalt(payload) {
-    const res = await fetch(BACKEND + "/download", {
+    const res = await fetch(BACKEND + "/info", {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
@@ -375,23 +375,46 @@ document.addEventListener('DOMContentLoaded', () => {
     return data;
   }
 
-  // Download: get tunnel URL from Railway (POST), then proxy it via Railway (GET, instant)
+  // Download: Railway POST proxies the file — fetch as blob, then download
   async function fetchAndDownloadCobalt(inputUrl, quality) {
     try {
-      const q = quality === 'audio' ? 'audio' : (quality || '1080');
       const isAudio = quality === 'audio';
-      // Step 1: Get tunnel URL via POST (fast, <15s)
-      const apiData = await fetchFromCobalt({
+      const payload = {
         url: inputUrl,
-        videoQuality: isAudio ? '1080' : q,
+        videoQuality: isAudio ? '1080' : (quality || '1080'),
         ...(isAudio ? { audioOnly: true } : {})
-      });
-      if (!apiData.url) throw new Error('No tunnel URL from server');
+      };
 
-      // Step 2: Immediately open the Railway proxy for this tunnel (instant, no Cobalt call)
-      const filename = encodeURIComponent(apiData.filename || 'video.mp4');
-      const dlUrl = BACKEND + `/dl?tunnel=${encodeURIComponent(apiData.url)}&filename=${filename}`;
-      window.open(dlUrl, '_blank');
+      const response = await fetch(BACKEND + "/download", {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(300000)
+      });
+      if (!response.ok) throw new Error(`Server HTTP ${response.status}`);
+
+      const contentType = response.headers.get('content-type') || '';
+      if (contentType.includes('application/json')) {
+        const errData = await response.json();
+        throw new Error(errData.error || 'Server error');
+      }
+
+      const blob = await response.blob();
+      if (blob.size === 0) throw new Error("Download returned empty file (0 bytes)");
+
+      const objUrl = URL.createObjectURL(blob);
+      const disposition = response.headers.get('content-disposition') || '';
+      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'download';
+
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
     } catch (err) {
       const errEl = document.getElementById('download-error');
       const errText = document.getElementById('download-error-text');

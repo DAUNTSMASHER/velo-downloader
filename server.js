@@ -34,8 +34,8 @@ async function tryCobalt(ep, payload) {
   return data;
 }
 
-// POST endpoint for Cobalt API call only (returns JSON with tunnel URL)
-app.post("/download", async (req, res) => {
+// POST /info — returns JSON with tunnel URL + filename (no file proxy, instant)
+app.post("/info", async (req, res) => {
   const { url, videoQuality = "1080", audioOnly, disableMetadata } = req.body;
   if (!url) return res.status(400).json({ error: "URL required" });
   const payload = { url, videoQuality, filenameStyle: "basic", disableMetadata: !!disableMetadata };
@@ -48,18 +48,28 @@ app.post("/download", async (req, res) => {
   res.json(data);
 });
 
-// GET endpoint: proxies a tunnel URL (fast, no Cobalt API call)
-app.get("/dl", async (req, res) => {
-  const tunnelUrl = req.query.tunnel;
-  const filename = req.query.filename || "video.mp4";
-  if (!tunnelUrl) return res.status(400).send("Missing ?tunnel=");
+// Single POST: calls Cobalt, fetches tunnel, streams file back
+app.post("/download", async (req, res) => {
+  const { url, videoQuality = "1080", audioOnly, disableMetadata } = req.body;
+  if (!url) return res.status(400).json({ error: "URL required" });
 
-  const fileRes = await fetch(tunnelUrl);
-  if (!fileRes.ok) return res.status(502).send("File unavailable");
+  const payload = { url, videoQuality, filenameStyle: "basic", disableMetadata: !!disableMetadata };
+  if (audioOnly) payload.audioOnly = true;
 
+  let data;
+  for (const ep of ENDPOINTS) {
+    try { data = await tryCobalt(ep, payload); break; } catch {}
+  }
+  if (!data?.url) return res.status(502).json({ error: "All endpoints failed" });
+
+  // Fetch from tunnel URL (server-side, avoids browser integrity checks)
+  const fileRes = await fetch(data.url);
+  if (!fileRes.ok) return res.status(502).json({ error: "File unavailable" });
+
+  // Send headers and stream the file back
   res.set({
     "Content-Type": fileRes.headers.get("content-type") || "application/octet-stream",
-    "Content-Disposition": `attachment; filename="${filename}"`,
+    "Content-Disposition": fileRes.headers.get("content-disposition") || `attachment; filename="${data.filename || "video.mp4"}"`,
     "Cache-Control": "no-cache"
   });
 
