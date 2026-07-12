@@ -54,35 +54,26 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="styles.css">
+  <link rel="stylesheet" href="styles.css?v=5.0">
+  <link rel="stylesheet" href="mobile.css?v=6.0">
 </head>
 <body>
-  <!-- Ambient background glow elements -->
-  <div class="ambient-glow orb-1"></div>
-  <div class="ambient-glow orb-2"></div>
-  <div class="ambient-glow orb-3"></div>
-
   <div class="app-container">
-    <header class="app-header">
-      <div class="logo-container">
-        <!-- Modern SVG Logo -->
-        <svg class="app-logo" viewBox="0 0 100 100" width="50" height="50" aria-label="VeloDownloader Logo">
-          <defs>
-            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
-              <stop offset="0%" stop-color="#a855f7" />
-              <stop offset="100%" stop-color="#3b82f6" />
-            </linearGradient>
-          </defs>
-          <circle cx="50" cy="50" r="45" fill="none" stroke="url(#logo-grad)" stroke-width="8" />
-          <polygon points="40,30 70,50 40,70" fill="url(#logo-grad)" />
-          <path d="M 30,80 L 70,80" stroke="url(#logo-grad)" stroke-width="6" stroke-linecap="round" />
-        </svg>
-        <span class="logo-text">Velo<span class="gradient-text">Downloader</span></span>
-      </div>
-      <p class="tagline">Sleek, minimal, and lightning-fast media downloader for all your devices.</p>
-    </header>
+    <div class="content-card">
+      <header class="app-header">
+        <div class="logo-container">
+          <div class="brand-logo">
+            <span class="brand-initials">VD</span>
+            <div class="brand-right">
+              <span class="brand-name">VEO</span>
+              <span class="brand-tagline">DOWNLOADER</span>
+            </div>
+          </div>
+        </div>
+        <p class="tagline">Download videos and images from YouTube, Instagram, TikTok, and Facebook.</p>
+      </header>
 
-    <main class="main-card">
+      <main class="main-card">
       <!-- Media Type Tabs -->
       <nav class="tabs-nav" aria-label="Media Type Selection">
         <button class="tab-btn active" id="tab-video" data-mode="video" aria-selected="true" role="tab">
@@ -100,79 +91,108 @@
           </svg>
           Image Downloader
         </button>
+        <button class="tab-btn" id="tab-bulk" data-mode="bulk" aria-selected="false" role="tab">
+          <svg class="tab-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+            <rect x="3" y="3" width="18" height="18" rx="2" ry="2"></rect>
+            <line x1="9" y1="12" x2="15" y2="12"></line>
+            <line x1="12" y1="9" x2="12" y2="15"></line>
+          </svg>
+          Bulk Download
+        </button>
       </nav>
 
       <h1 class="main-title" id="downloader-heading">Paste Video URL to Download</h1>
       
-      <!-- Platform Selector -->
-      <section class="platform-selector-wrapper" aria-label="Supported platforms selector">
-        <span class="selector-label" id="platform-label-txt">Supported Platforms</span>
-        <div class="platform-list" id="platform-container">
-          <button class="platform-btn active" id="btn-auto" data-platform="auto" aria-label="Auto detect platform">
-            <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
-              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
-            </svg>
-            <span>Auto Detect</span>
-          </button>
-          <button class="platform-btn" id="btn-youtube" data-platform="youtube" aria-label="YouTube">
-            <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.517 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.871.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.002 3.002 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
-            </svg>
-            <span>YouTube</span>
-          </button>
-          <button class="platform-btn" id="btn-tiktok" data-platform="tiktok" aria-label="TikTok">
-            <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.74-3.94-1.78-.22-.22-.43-.47-.62-.73v7.02c.01 2.44-1.07 4.87-3.07 6.1-2.4 1.55-5.69 1.5-7.96-.22-2.28-1.65-3.32-4.66-2.53-7.4.67-2.46 2.66-4.4 5.17-4.88 1.1-.21 2.24-.07 3.29.35v4.02c-.85-.35-1.84-.41-2.71-.08-1.22.42-2.14 1.59-2.28 2.87-.24 1.61.76 3.23 2.31 3.69 1.54.49 3.32-.22 3.99-1.68.21-.45.28-.96.27-1.46V.02z"/>
-            </svg>
-            <span>TikTok</span>
-          </button>
-          <button class="platform-btn" id="btn-instagram" data-platform="instagram" aria-label="Instagram">
-            <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
-              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
-              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
-              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
-            </svg>
-            <span>Instagram</span>
-          </button>
-          <button class="platform-btn" id="btn-facebook" data-platform="facebook" aria-label="Facebook">
-            <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
-              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
-            </svg>
-            <span>Facebook</span>
-          </button>
-        </div>
-      </section>
-
-      <!-- URL Input Section -->
-      <section class="input-section" aria-label="Media URL Input">
-        <form class="input-form" id="downloader-form">
-          <div class="input-group">
-            <input 
-              type="text" 
-              id="video-url" 
-              class="url-input" 
-              placeholder=" " 
-              required 
-              autocomplete="off"
-              aria-label="Paste video or image link here"
-            >
-            <label for="video-url" class="input-label" id="input-floating-label">Paste YouTube, Instagram, TikTok, or Facebook video link...</label>
-            <button type="button" id="btn-clear" class="clear-btn" aria-label="Clear input field">
-              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
-                <line x1="18" y1="6" x2="6" y2="18"/>
-                <line x1="6" y1="6" x2="18" y2="18"/>
+      <div id="single-mode-area">
+        <!-- Platform Selector -->
+        <section class="platform-selector-wrapper" aria-label="Supported platforms selector">
+          <span class="selector-label" id="platform-label-txt">Supported Platforms</span>
+          <div class="platform-list" id="platform-container">
+            <button class="platform-btn active" id="btn-auto" data-platform="auto" aria-label="Auto detect platform">
+              <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" aria-hidden="true">
+                <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
               </svg>
+              <span>Auto Detect</span>
+            </button>
+            <button class="platform-btn" id="btn-youtube" data-platform="youtube" aria-label="YouTube">
+              <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.517 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.871.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.002 3.002 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+              </svg>
+              <span>YouTube</span>
+            </button>
+            <button class="platform-btn" id="btn-tiktok" data-platform="tiktok" aria-label="TikTok">
+              <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.74-3.94-1.78-.22-.22-.43-.47-.62-.73v7.02c.01 2.44-1.07 4.87-3.07 6.1-2.4 1.55-5.69 1.5-7.96-.22-2.28-1.65-3.32-4.66-2.53-7.4.67-2.46 2.66-4.4 5.17-4.88 1.1-.21 2.24-.07 3.29.35v4.02c-.85-.35-1.84-.41-2.71-.08-1.22.42-2.14 1.59-2.28 2.87-.24 1.61.76 3.23 2.31 3.69 1.54.49 3.32-.22 3.99-1.68.21-.45.28-.96.27-1.46V.02z"/>
+              </svg>
+              <span>TikTok</span>
+            </button>
+            <button class="platform-btn" id="btn-instagram" data-platform="instagram" aria-label="Instagram">
+              <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
+                <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+                <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+                <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+              </svg>
+              <span>Instagram</span>
+            </button>
+            <button class="platform-btn" id="btn-facebook" data-platform="facebook" aria-label="Facebook">
+              <svg class="btn-icon" viewBox="0 0 24 24" width="16" height="16" fill="currentColor" aria-hidden="true">
+                <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+              </svg>
+              <span>Facebook</span>
             </button>
           </div>
-          <button type="submit" id="btn-fetch" class="fetch-btn">
-            <span class="btn-text">Analyze Link</span>
-            <div class="btn-loader" hidden>
-              <div class="spinner" aria-label="Loading indicator"></div>
+        </section>
+
+        <!-- URL Input Section -->
+        <section class="input-section" aria-label="Media URL Input">
+          <form class="input-form" id="downloader-form">
+            <div class="input-group">
+              <input type="text" id="video-url" class="url-input" placeholder=" " required autocomplete="off" aria-label="Paste video or image link here">
+              <label for="video-url" class="input-label" id="input-floating-label">Paste YouTube, Instagram, TikTok, or Facebook video link...</label>
+              <button type="button" id="btn-clear" class="clear-btn" aria-label="Clear input field">
+                <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" aria-hidden="true">
+                  <line x1="18" y1="6" x2="6" y2="18"/>
+                  <line x1="6" y1="6" x2="18" y2="18"/>
+                </svg>
+              </button>
             </div>
+            <button type="submit" id="btn-fetch" class="fetch-btn">
+              <span class="btn-text">Analyze Link</span>
+              <div class="btn-loader" hidden>
+                <div class="spinner" aria-label="Loading indicator"></div>
+              </div>
+            </button>
+          </form>
+          <p class="error-msg" id="url-error" hidden></p>
+        </section>
+      </div>
+
+      <!-- Bulk Section -->
+      <section class="bulk-section" id="bulk-section" hidden>
+        <div class="bulk-inputs" id="bulk-inputs">
+          <div class="bulk-input-row" data-index="0">
+            <div class="input-group">
+              <input type="text" class="url-input bulk-url-input" placeholder="Paste URL 1" autocomplete="off">
+            </div>
+            <span class="bulk-row-status" id="bulk-status-0"></span>
+          </div>
+        </div>
+        <div class="bulk-actions">
+          <button type="button" id="btn-bulk-add" class="bulk-toggle-btn">+ Add another</button>
+          <span class="bulk-add-hint" id="bulk-add-hint">max 5</span>
+        </div>
+        <div class="bulk-actions" style="margin-top:8px">
+          <button type="button" id="btn-bulk-analyze-all" class="fetch-btn" hidden>
+            <span>Analyze All</span>
           </button>
-        </form>
-        <p class="error-msg" id="url-error" hidden></p>
+          <button type="button" id="btn-bulk-download-all" class="fetch-btn" hidden>
+            <span>Download All</span>
+          </button>
+        </div>
+        <p class="error-msg" id="bulk-error" hidden></p>
       </section>
+      <!-- Bulk Results Container -->
+      <div id="bulk-results-container"></div>
 
       <!-- Results Card -->
       <section class="results-card" id="results-card" hidden>
@@ -180,10 +200,11 @@
           <!-- Preview Column -->
           <div class="media-preview-container">
             <div class="media-preview-graphic">
+              <img id="video-thumbnail" class="video-thumbnail" src="" alt="Video thumbnail" hidden>
               <svg viewBox="0 0 160 90" class="preview-svg" aria-label="Thumbnail Preview">
-                <rect width="100%" height="100%" fill="var(--preview-bg, rgba(255,255,255,0.03))" rx="8" />
-                <path id="preview-media-type-icon" d="M65,30 L105,45 L65,60 Z" fill="var(--platform-accent, #a855f7)" opacity="0.85" />
-                <circle cx="80" cy="45" r="30" stroke="var(--platform-accent, #a855f7)" stroke-dasharray="6" stroke-width="2" fill="none" class="rotating-ring" />
+                <rect width="100%" height="100%" fill="#f7f7f7" rx="4" />
+                <path id="preview-media-type-icon" d="M65,30 L105,45 L65,60 Z" fill="#007185" opacity="0.85" />
+                <circle cx="80" cy="45" r="30" stroke="#007185" stroke-dasharray="6" stroke-width="2" fill="none" />
               </svg>
               <span class="duration-badge" id="video-duration">03:45</span>
             </div>
@@ -221,6 +242,7 @@
 
 
     </main>
+    </div>
 
     <!-- Verified User Reviews & Ratings Section -->
     <section class="reviews-section" id="reviews-section">
@@ -322,6 +344,6 @@
   </div>
 
   <!-- Main JavaScript File -->
-  <script src="app.js"></script>
+  <script src="app.js?v=16.0"></script>
 </body>
 </html>

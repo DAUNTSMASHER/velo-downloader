@@ -10,6 +10,8 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const tabVideo = document.getElementById('tab-video');
   const tabImage = document.getElementById('tab-image');
+  const tabBulk = document.getElementById('tab-bulk');
+  const singleModeArea = document.getElementById('single-mode-area');
   const downloaderHeading = document.getElementById('downloader-heading');
   const inputFloatingLabel = document.getElementById('input-floating-label');
   const platformButtons = document.querySelectorAll('.platform-btn');
@@ -46,23 +48,85 @@ document.addEventListener('DOMContentLoaded', () => {
   
   const toastContainer = document.getElementById('toast-container');
 
+  // Bulk Mode DOM Elements
+  const bulkSection = document.getElementById('bulk-section');
+  const bulkError = document.getElementById('bulk-error');
+  const bulkResultsContainer = document.getElementById('bulk-results-container');
+
   // App State
   let currentMode = 'video';
   let currentPlatform = 'auto';
   let activeDownloadInterval = null;
+  let isBulkDownload = false;
+  let bulkDownloadItems = [];
+  let savedMode = 'video';
 
   // Review Gating State
   let pendingDownloadQuality = null;
   let pendingDownloadExt = null;
   let currentRatingSelection = 5;
+  let lastInputUrl = '';
 
-  // Cobalt API list & real download target
-  const cobaltEndpoints = [
-    "https://api.cobalt.liubquanti.click/",
-    "https://cobaltapi.kittycat.boo/",
-    "https://dog.kittycat.boo/"
-  ];
+  // Helpers: YouTube ID extraction, file size formatting, HEAD request
+  function extractYouTubeVideoId(url) {
+    const patterns = [
+      /(?:youtube\.com\/watch\?v=|youtu\.be\/|youtube\.com\/embed\/|youtube\.com\/shorts\/)([a-zA-Z0-9_-]{11})/,
+      /youtube\.com\/watch\?.+v=([a-zA-Z0-9_-]{11})/
+    ];
+    for (const p of patterns) {
+      const m = url.match(p);
+      if (m) return m[1];
+    }
+    return null;
+  }
+
+  function formatFileSize(bytes) {
+    if (bytes == null || isNaN(bytes)) return null;
+    const units = ['B', 'KB', 'MB', 'GB'];
+    let i = 0;
+    let size = bytes;
+    while (size >= 1024 && i < units.length - 1) {
+      size /= 1024;
+      i++;
+    }
+    return `${size.toFixed(i === 0 ? 0 : 1)} ${units[i]}`;
+  }
+
+  async function fetchRealFileSize(url) {
+    try {
+      const resp = await fetch(url, { method: 'HEAD', mode: 'cors' });
+      const len = resp.headers.get('content-length');
+      return len ? parseInt(len, 10) : null;
+    } catch {
+      return null;
+    }
+  }
+
+  async function fetchYouTubeOEmbed(videoId) {
+    try {
+      const resp = await fetch(`https://www.youtube.com/oembed?url=https://www.youtube.com/watch?v=${videoId}&format=json`);
+      if (!resp.ok) return null;
+      return await resp.json();
+    } catch {
+      return null;
+    }
+  }
+
   let pendingRealDownloadUrl = null;
+
+  // Thumbnail display helper
+  function setVideoThumbnail(src) {
+    const img = document.getElementById('video-thumbnail');
+    const svg = document.querySelector('.preview-svg');
+    if (src) {
+      img.src = src;
+      img.hidden = false;
+      svg.style.display = 'none';
+    } else {
+      img.hidden = true;
+      svg.style.display = 'block';
+    }
+  }
 
   // Local Review Data Array for dynamic rendering and SEO
   const reviewsData = [
@@ -94,9 +158,9 @@ document.addEventListener('DOMContentLoaded', () => {
       btnText: 'Download Video',
       optionsTitle: 'Available Video Formats',
       formats: [
-        { label: '1080p Full HD', ext: 'MP4', detail: '60 FPS • 42.5 MB', quality: '1080p' },
-        { label: '720p HD Quality', ext: 'MP4', detail: '30 FPS • 18.2 MB', quality: '720p' },
-        { label: 'Audio Extract', ext: 'MP3', detail: '320kbps • 5.1 MB', quality: 'mp3' }
+        { label: '1080p Full HD', ext: 'MP4', detail: 'Full HD video stream', quality: '1080p' },
+        { label: '720p HD Quality', ext: 'MP4', detail: 'HD quality video stream', quality: '720p' },
+        { label: 'Audio Extract', ext: 'MP3', detail: 'High quality audio', quality: 'mp3' }
       ],
       svgIconPath: 'M65,30 L105,45 L65,60 Z'
     },
@@ -106,9 +170,9 @@ document.addEventListener('DOMContentLoaded', () => {
       btnText: 'Download Image',
       optionsTitle: 'Available Image Resolutions',
       formats: [
-        { label: 'Original Resolution', ext: 'PNG', detail: 'Lossless Quality • 5.4 MB', quality: 'original' },
-        { label: 'High Quality', ext: 'JPG', detail: 'Optimized Size • 2.2 MB', quality: 'high' },
-        { label: 'WebP Compressed', ext: 'WEBP', detail: 'Super Small File • 1.1 MB', quality: 'webp' }
+        { label: 'Original Resolution', ext: 'PNG', detail: 'Lossless quality', quality: 'original' },
+        { label: 'High Quality', ext: 'JPG', detail: 'Optimized quality', quality: 'high' },
+        { label: 'WebP Compressed', ext: 'WEBP', detail: 'Compressed format', quality: 'webp' }
       ],
       svgIconPath: 'M50 25 h20 v20 h-20 z M40 65 l20 -20 l15 15 l20 -30 l25 35 z'
     }
@@ -191,9 +255,9 @@ document.addEventListener('DOMContentLoaded', () => {
 
     platformButtons.forEach(b => {
       if (b.dataset.platform === detected) {
-        b.style.borderColor = platformColors[detected].accent;
+        b.classList.add('active');
       } else if (b.dataset.platform !== 'auto') {
-        b.style.borderColor = '';
+        b.classList.remove('active');
       }
     });
 
@@ -203,41 +267,56 @@ document.addEventListener('DOMContentLoaded', () => {
   // 3. Tab Switching Logic
   function switchMode(newMode) {
     if (currentMode === newMode) return;
+    if (currentMode !== 'bulk') savedMode = currentMode;
     currentMode = newMode;
-    
-    if (currentMode === 'video') {
+
+    // Reset active tab
+    tabVideo.classList.remove('active');
+    tabVideo.setAttribute('aria-selected', 'false');
+    tabImage.classList.remove('active');
+    tabImage.setAttribute('aria-selected', 'false');
+    tabBulk.classList.remove('active');
+    tabBulk.setAttribute('aria-selected', 'false');
+
+    if (newMode === 'video') {
       tabVideo.classList.add('active');
       tabVideo.setAttribute('aria-selected', 'true');
-      tabImage.classList.remove('active');
-      tabImage.setAttribute('aria-selected', 'false');
-    } else {
+    } else if (newMode === 'image') {
       tabImage.classList.add('active');
       tabImage.setAttribute('aria-selected', 'true');
-      tabVideo.classList.remove('active');
-      tabVideo.setAttribute('aria-selected', 'false');
+    } else {
+      tabBulk.classList.add('active');
+      tabBulk.setAttribute('aria-selected', 'true');
     }
 
-    const config = platformConfigs[currentMode];
-    downloaderHeading.textContent = config.heading;
-    fetchBtnText.textContent = config.btnText;
-    
-    urlInput.value = '';
-    urlError.hidden = true;
-    urlInput.classList.remove('invalid');
-    resultsCard.hidden = true;
-    resetProgress();
-    
-    currentPlatform = 'auto';
-    applyPlatformTheme('auto');
-    platformButtons.forEach(b => {
-      b.classList.remove('active');
-      b.style.borderColor = '';
-    });
-    document.getElementById('btn-auto').classList.add('active');
+    const isSingleMode = newMode === 'video' || newMode === 'image';
+    singleModeArea.hidden = !isSingleMode;
+    bulkSection.hidden = isSingleMode;
+
+    if (isSingleMode) {
+      const config = platformConfigs[newMode];
+      downloaderHeading.textContent = config.heading;
+      fetchBtnText.textContent = config.btnText;
+
+      urlInput.value = '';
+      urlError.hidden = true;
+      urlInput.classList.remove('invalid');
+      resultsCard.hidden = true;
+      resetProgress();
+      
+      currentPlatform = 'auto';
+      applyPlatformTheme('auto');
+      platformButtons.forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-auto').classList.add('active');
+    } else {
+      downloaderHeading.textContent = 'Bulk Download (Max 5 URLs)';
+      resetBulk();
+    }
   }
 
   tabVideo.addEventListener('click', () => switchMode('video'));
   tabImage.addEventListener('click', () => switchMode('image'));
+  tabBulk.addEventListener('click', () => switchMode('bulk'));
 
   platformButtons.forEach(btn => {
     btn.addEventListener('click', () => {
@@ -259,7 +338,8 @@ document.addEventListener('DOMContentLoaded', () => {
       detectPlatform(val);
     } else {
       applyPlatformTheme('auto');
-      platformButtons.forEach(b => b.style.borderColor = '');
+      platformButtons.forEach(b => b.classList.remove('active'));
+      document.getElementById('btn-auto').classList.add('active');
     }
     urlError.hidden = true;
     urlInput.classList.remove('invalid');
@@ -271,54 +351,59 @@ document.addEventListener('DOMContentLoaded', () => {
     urlError.hidden = true;
     urlInput.classList.remove('invalid');
     applyPlatformTheme('auto');
-    platformButtons.forEach(b => b.style.borderColor = '');
+    platformButtons.forEach(b => b.classList.remove('active'));
+    document.getElementById('btn-auto').classList.add('active');
     resultsCard.hidden = true;
     resetProgress();
   });
 
-  // Helper to fetch from Cobalt trying each instance as fallback
+  // All Cobalt calls go through our server function which proxies the file back
   async function fetchFromCobalt(payload) {
-    for (const endpoint of cobaltEndpoints) {
-      try {
-        const response = await fetch(endpoint, {
-          method: 'POST',
-          headers: {
-            'Accept': 'application/json',
-            'Content-Type': 'application/json'
-          },
-          body: JSON.stringify(payload)
-        });
-        
-        if (!response.ok) {
-          throw new Error(`HTTP ${response.status}`);
-        }
-        
-        const data = await response.json();
-        if (data && (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect' || data.status === 'picker')) {
-          return data;
-        } else if (data && data.status === 'error') {
-          console.warn(`Cobalt endpoint ${endpoint} returned error:`, data.error);
-        }
-      } catch (err) {
-        console.warn(`Failed to fetch from Cobalt endpoint ${endpoint}:`, err);
-      }
+    const response = await fetch("https://velo-downloader-production.up.railway.app/download", {
+      method: 'POST',
+      headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+      signal: AbortSignal.timeout(200000)
+    });
+    if (!response.ok) throw new Error(`HTTP ${response.status}`);
+
+    const contentType = response.headers.get('content-type') || '';
+
+    // Server streamed the file directly — create blob URL and download
+    if (!contentType.includes('application/json')) {
+      const blob = await response.blob();
+      const objUrl = URL.createObjectURL(blob);
+      const disposition = response.headers.get('content-disposition') || '';
+      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'download';
+      return { url: objUrl, filename, status: 'stream', _isBlob: true };
     }
-    throw new Error("All Cobalt API endpoints failed or returned errors.");
+
+    // Server returned JSON (file proxy failed) — return tunnel URL
+    const data = await response.json();
+    if (data.error) throw new Error(data.error);
+    if (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect' || data.status === 'picker') {
+      return data;
+    }
+    throw new Error('No downloadable URL in response');
   }
 
   // Render download option lists
-  function renderFormatOptions(mode, realVideoUrl, originalInputUrl) {
+  function renderFormatOptions(mode, realVideoUrl, originalInputUrl, realSizes) {
     const config = platformConfigs[mode];
     optionsTitleTxt.textContent = config.optionsTitle;
     optionsListContainer.innerHTML = '';
 
     config.formats.forEach(f => {
+      const realSize = realSizes && realSizes[f.quality];
+      const sizeStr = realSize ? formatFileSize(realSize) : null;
+      const detail = sizeStr ? `${f.ext} • ${sizeStr}` : `${f.ext} • ${f.detail}`;
       const row = document.createElement('div');
       row.className = 'option-row';
       row.innerHTML = `
         <div class="option-info">
           <span class="option-quality">${f.label}</span>
-          <span class="option-details">${f.ext} • ${f.detail}</span>
+          <span class="option-details">${detail}</span>
         </div>
         <button class="download-option-btn" data-quality="${f.quality}" data-ext="${f.ext}">
           Download
@@ -369,13 +454,14 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   // 4. Submit URL & Analysis
-  form.addEventListener('submit', (e) => {
+  form.addEventListener('submit', async (e) => {
     e.preventDefault();
     let url = urlInput.value.trim();
 
     if (!url) return;
 
-    // Auto-prepend protocol if missing for better compatibility and prevents validation crash
+    lastInputUrl = url;
+
     if (!/^https?:\/\//i.test(url)) {
       url = 'https://' + url;
       urlInput.value = url;
@@ -395,6 +481,8 @@ document.addEventListener('DOMContentLoaded', () => {
     const platformLabel = platform === 'auto' ? 'Web Link' : platform.charAt(0).toUpperCase() + platform.slice(1);
 
     fetchBtn.disabled = true;
+    fetchBtn.classList.add('loading');
+    fetchBtnText.textContent = 'Analyzing...';
     fetchBtnText.style.opacity = '0.3';
     fetchBtnLoader.hidden = false;
     urlError.hidden = true;
@@ -402,119 +490,280 @@ document.addEventListener('DOMContentLoaded', () => {
     resultsCard.hidden = true;
     resetProgress();
 
-    // Call Cobalt to analyze the link
-    const payload = {
-      url: url,
-      videoQuality: "720" // default target quality
-    };
+    // ---- Step 1: Fetch YouTube oEmbed metadata (fast, always works) ----
+    const videoId = extractYouTubeVideoId(url);
+    let oembedData = null;
+    if (videoId) {
+      oembedData = await fetchYouTubeOEmbed(videoId);
+    }
 
-    fetchFromCobalt(payload)
-      .then(data => {
-        fetchBtn.disabled = false;
-        fetchBtnText.style.opacity = '1';
-        fetchBtnLoader.hidden = true;
+    // Show the platform accent immediately
+    resultsCard.style.setProperty('--platform-accent', platformColors[platform].accent);
+    resultsCard.style.setProperty('--platform-glow', platformColors[platform].glow);
 
-        // Clean filename to use as title
-        let title = data.filename || "Extracted Social Media Video";
-        // Remove extension from filename if present
-        title = title.replace(/\.[^/.]+$/, "");
+    if (oembedData) {
+      videoTitle.textContent = oembedData.title;
+      metaPlatform.textContent = platformLabel;
+      metaAuthor.textContent = oembedData.author_name;
+      setVideoThumbnail(oembedData.thumbnail_url || `https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
+    } else {
+      videoTitle.textContent = `Extracted ${platformLabel} Content`;
+      metaPlatform.textContent = platformLabel;
+      metaAuthor.textContent = platform !== 'auto' ? `@creator_${platform}` : '@web_media';
+      if (videoId) {
+        setVideoThumbnail(`https://img.youtube.com/vi/${videoId}/maxresdefault.jpg`);
+      }
+    }
 
-        const creatorName = platform !== 'auto' ? `@creator_${platform}` : '@web_media';
+    const config = platformConfigs[currentMode];
+    previewMediaTypeIcon.setAttribute('d', config.svgIconPath);
 
+    const durationBadge = document.getElementById('video-duration');
+    if (currentMode === 'video') {
+      durationBadge.textContent = 'HD';
+      durationBadge.style.display = 'block';
+    } else {
+      durationBadge.style.display = 'none';
+    }
+
+    const previewSvg = resultsCard.querySelector('.preview-svg');
+    if (previewSvg) previewSvg.style.setProperty('--platform-accent', platformColors[platform].accent);
+
+    // Show oEmbed metadata immediately, then fetch download URL
+    resultsCard.hidden = false;
+    resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+
+    // ---- Step 2: Fetch real download URL from Cobalt ----
+    let realDownloadUrl = null;
+    let realSizes = {};
+    try {
+      const data = await fetchFromCobalt({ url, videoQuality: "1080" });
+      realDownloadUrl = data.url;
+
+      if (!oembedData && data.filename) {
+        let title = data.filename.replace(/\.[^/.]+$/, "");
         videoTitle.textContent = title;
-        metaPlatform.textContent = platformLabel;
-        metaAuthor.textContent = creatorName;
-        
-        const config = platformConfigs[currentMode];
-        previewMediaTypeIcon.setAttribute('d', config.svgIconPath);
-        
-        const durationBadge = document.getElementById('video-duration');
-        if (currentMode === 'video') {
-          durationBadge.textContent = 'HD';
-          durationBadge.style.display = 'block';
-        } else {
-          durationBadge.style.display = 'none';
-        }
+      }
 
-        resultsCard.style.setProperty('--platform-accent', platformColors[platform].accent);
-        resultsCard.style.setProperty('--platform-glow', platformColors[platform].glow);
-        
-        const previewSvg = resultsCard.querySelector('.preview-svg');
-        previewSvg.style.setProperty('--platform-accent', platformColors[platform].accent);
+      const realSize = realDownloadUrl ? await fetchRealFileSize(realDownloadUrl) : null;
+      if (realSize) {
+        realSizes[config.formats[0].quality] = realSize;
+      }
+    } catch {
+      // Cobalt unavailable — will show fallback options
+    }
 
-        // Store the real download link
-        const downloadUrl = data.url;
-
-        // Render format options with real download URL
-        renderFormatOptions(currentMode, downloadUrl, url);
-        
-        resultsCard.hidden = false;
-        resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-        
-        showToast('Media details extracted successfully!');
-      })
-      .catch(error => {
-        // FALLBACK: If all Cobalt instances fail or rate-limit, run our beautiful mock extractor!
-        console.warn("Cobalt extraction failed, falling back to mock:", error);
-        
-        setTimeout(() => {
-          fetchBtn.disabled = false;
-          fetchBtnText.style.opacity = '1';
-          fetchBtnLoader.hidden = true;
-
-          const creatorName = platform !== 'auto' ? `@creator_${platform}` : '@web_media';
-
-          const titles = {
-            video: {
-              youtube: 'How to build beautiful Web interfaces in 2026 (Full Tutorial)',
-              tiktok: 'Funny cat attempts to jump onto a glass table 😹 #funny #cats',
-              instagram: 'Sunset waves on the Amalfi Coast - Cinematic Travel Reels',
-              facebook: 'Amazing street food compilation from around the globe',
-              auto: 'Extracted Social Video Stream'
-            },
-            image: {
-              youtube: 'HD Video Thumbnail - How to build web interfaces (1920x1080)',
-              tiktok: 'Creator Profile Picture (Original High Definition)',
-              instagram: 'Aesthetic minimalist home design photography',
-              facebook: 'Shared Timeline Photo - Beautiful Autumn forest landscape',
-              auto: 'High Resolution Image File'
-            }
-          };
-
-          const matchedTitle = titles[currentMode][platform] || titles[currentMode]['auto'];
-
-          videoTitle.textContent = matchedTitle;
-          metaPlatform.textContent = platformLabel;
-          metaAuthor.textContent = creatorName;
-          
-          const config = platformConfigs[currentMode];
-          previewMediaTypeIcon.setAttribute('d', config.svgIconPath);
-          
-          const durationBadge = document.getElementById('video-duration');
-          if (currentMode === 'video') {
-            const durationStr = platform === 'youtube' ? '14:20' : platform === 'tiktok' ? '00:15' : '01:05';
-            durationBadge.textContent = durationStr;
-            durationBadge.style.display = 'block';
-          } else {
-            durationBadge.style.display = 'none';
-          }
-
-          resultsCard.style.setProperty('--platform-accent', platformColors[platform].accent);
-          resultsCard.style.setProperty('--platform-glow', platformColors[platform].glow);
-          
-          const previewSvg = resultsCard.querySelector('.preview-svg');
-          previewSvg.style.setProperty('--platform-accent', platformColors[platform].accent);
-
-          // In fallback, we pass null as the real download URL, which will trigger the mock canvas/text file generator
-          renderFormatOptions(currentMode, null, url);
-          
-          resultsCard.hidden = false;
-          resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-          
-          showToast('Media details compiled successfully (Offline mode).');
-        }, 1200);
-      });
+    renderFormatOptions(currentMode, realDownloadUrl, url, realSizes);
+    fetchBtn.disabled = false;
+    fetchBtn.classList.remove('loading');
+    fetchBtnText.textContent = 'Fetch';
+    fetchBtnText.style.opacity = '1';
+    fetchBtnLoader.hidden = true;
   });
+
+  // 4b. Bulk Download Mode
+  const bulkInputsContainer = document.getElementById('bulk-inputs');
+  const bulkAddBtn = document.getElementById('btn-bulk-add');
+  const bulkAddHint = document.getElementById('bulk-add-hint');
+  const bulkAnalyzeAllBtn = document.getElementById('btn-bulk-analyze-all');
+  const bulkDownloadAllBtn = document.getElementById('btn-bulk-download-all');
+
+  // Store results per row: { url, oembedData, cobaltData, downloadUrl, title, author }
+  let bulkResults = [];
+
+  function resetBulk() {
+    bulkInputsContainer.innerHTML = '';
+    bulkResultsContainer.innerHTML = '';
+    bulkError.hidden = true;
+    bulkAnalyzeAllBtn.hidden = true;
+    bulkDownloadAllBtn.hidden = true;
+    bulkResults = [];
+    addBulkRow(0);
+  }
+
+  function addBulkRow(index) {
+    const row = document.createElement('div');
+    row.className = 'bulk-input-row';
+    row.dataset.index = index;
+    row.innerHTML = `
+      <div class="input-group">
+        <input type="text" class="url-input bulk-url-input" placeholder="Paste URL ${index + 1}" autocomplete="off">
+      </div>
+      <span class="bulk-row-status" id="bulk-status-${index}"></span>
+    `;
+    bulkInputsContainer.appendChild(row);
+
+    const input = row.querySelector('.bulk-url-input');
+
+    // Auto-analyze on Enter
+    input.addEventListener('keydown', (e) => {
+      if (e.key === 'Enter') {
+        e.preventDefault();
+        analyzeBulkRow(index);
+      }
+    });
+
+    updateAddButton();
+    updateActionButtons();
+  }
+
+  function removeExtraRows() {
+    const rows = bulkInputsContainer.querySelectorAll('.bulk-input-row');
+    if (rows.length > 5) {
+      for (let i = 5; i < rows.length; i++) {
+        rows[i].remove();
+      }
+    }
+  }
+
+  function updateAddButton() {
+    const count = bulkInputsContainer.querySelectorAll('.bulk-input-row').length;
+    bulkAddBtn.hidden = count >= 5;
+    bulkAddHint.hidden = count >= 5;
+  }
+
+  function updateActionButtons() {
+    const rows = bulkInputsContainer.querySelectorAll('.bulk-input-row');
+    const hasAny = rows.length > 0;
+    const hasUnanalyzed = Array.from(rows).some(r => !r.dataset.analyzed);
+    bulkAnalyzeAllBtn.hidden = !(hasAny && hasUnanalyzed);
+    // Download All button visibility is managed separately
+  }
+
+  bulkAddBtn.addEventListener('click', () => {
+    const rows = bulkInputsContainer.querySelectorAll('.bulk-input-row');
+    if (rows.length >= 5) return;
+    addBulkRow(rows.length);
+  });
+
+  async function analyzeBulkRow(index) {
+    const row = bulkInputsContainer.querySelector(`.bulk-input-row[data-index="${index}"]`);
+    if (!row) return;
+    const input = row.querySelector('.bulk-url-input');
+    const statusEl = document.getElementById(`bulk-status-${index}`);
+
+    let url = input.value.trim();
+    if (!url) return;
+
+    if (!/^https?:\/\//i.test(url)) url = 'https://' + url;
+    input.value = url;
+
+    statusEl.textContent = 'Analyzing...';
+    statusEl.className = 'bulk-row-status loading';
+
+    let oembedData = null;
+    let cobaltData = null;
+    let downloadUrl = null;
+    let title = 'Unknown';
+    let author = '';
+
+    try {
+      new URL(url);
+    } catch {
+      statusEl.textContent = 'Invalid URL';
+      statusEl.className = 'bulk-row-status error';
+      return;
+    }
+
+    const videoId = extractYouTubeVideoId(url);
+    if (videoId) {
+      oembedData = await fetchYouTubeOEmbed(videoId);
+    }
+
+    try {
+      cobaltData = await fetchFromCobalt({ url, videoQuality: "1080" });
+      downloadUrl = cobaltData.url;
+    } catch { /* cobalt failed */ }
+
+    if (oembedData) {
+      title = oembedData.title;
+      author = oembedData.author_name;
+    } else if (cobaltData) {
+      title = (cobaltData.filename || "Extracted Media").replace(/\.[^/.]+$/, "");
+    }
+
+    row.dataset.analyzed = 'true';
+    bulkResults[index] = { url, oembedData, cobaltData, downloadUrl, title, author };
+
+    // Show result card
+    const thumbHtml = oembedData && oembedData.thumbnail_url
+      ? `<img src="${oembedData.thumbnail_url}" alt="">`
+      : '';
+    const platformLabel = oembedData ? 'YouTube' : (cobaltData ? 'Media' : 'Unknown');
+    const metaText = author ? `${platformLabel} • ${author}` : platformLabel;
+
+    const card = document.createElement('div');
+    card.className = 'bulk-result-card';
+    card.id = `bulk-result-card-${index}`;
+    card.innerHTML = `
+      <div class="bulk-result-body">
+        <div class="bulk-result-thumb">${thumbHtml}</div>
+        <div class="bulk-result-info">
+          <div class="bulk-result-title">${title}</div>
+          <div class="bulk-result-meta">${metaText}</div>
+          <div class="bulk-result-options" id="bulk-options-${index}"></div>
+        </div>
+      </div>
+    `;
+    bulkResultsContainer.appendChild(card);
+    card.hidden = false;
+
+    // Render download options
+    const optionsEl = document.getElementById(`bulk-options-${index}`);
+    const config = platformConfigs[savedMode];
+    config.formats.forEach(f => {
+      const btn = document.createElement('button');
+      btn.className = 'download-option-btn';
+      btn.textContent = `Download ${f.label}`;
+      btn.addEventListener('click', () => {
+        pendingDownloadQuality = f.quality;
+        pendingDownloadExt = f.ext;
+        pendingRealDownloadUrl = downloadUrl;
+        openReviewModal();
+      });
+      optionsEl.appendChild(btn);
+    });
+
+    statusEl.textContent = 'Ready';
+    statusEl.className = 'bulk-row-status done';
+    input.disabled = true;
+
+    updateActionButtons();
+    updateDownloadAllButton();
+
+    showToast(`URL ${index + 1}: ${title}`, 'success');
+  }
+
+  function updateDownloadAllButton() {
+    const ready = bulkResults.filter(r => r && r.url).length;
+    bulkDownloadAllBtn.hidden = ready === 0;
+    bulkDownloadAllBtn.querySelector('span').textContent = `Download All (${ready})`;
+  }
+
+  // Analyze All button
+  bulkAnalyzeAllBtn.addEventListener('click', () => {
+    const rows = bulkInputsContainer.querySelectorAll('.bulk-input-row:not([data-analyzed])');
+    rows.forEach(row => {
+      const index = parseInt(row.dataset.index);
+      analyzeBulkRow(index);
+    });
+  });
+
+  // Download All button
+  bulkDownloadAllBtn.addEventListener('click', () => {
+    const ready = bulkResults.filter(r => r && r.url);
+    if (ready.length === 0) return;
+
+    pendingDownloadQuality = 'Bulk';
+    pendingDownloadExt = 'Bulk';
+    pendingRealDownloadUrl = null;
+    isBulkDownload = true;
+    bulkDownloadItems = ready.slice();
+    openReviewModal();
+  });
+
+  // Initialize with one row
+  addBulkRow(0);
 
   // 5. Review Gating Modal Logic
   function openReviewModal() {
@@ -530,6 +779,11 @@ document.addEventListener('DOMContentLoaded', () => {
 
   function closeReviewModal() {
     reviewModalOverlay.classList.remove('active');
+    // Reset bulk download state if modal closed without submitting
+    if (isBulkDownload) {
+      isBulkDownload = false;
+      bulkDownloadItems = [];
+    }
   }
 
   btnCloseReviewModal.addEventListener('click', () => {
@@ -607,7 +861,23 @@ document.addEventListener('DOMContentLoaded', () => {
     showToast('Review submitted! Starting your download...', 'success');
     
     // Trigger download
-    if (pendingDownloadQuality && pendingDownloadExt) {
+    if (isBulkDownload && bulkDownloadItems.length > 0) {
+      const items = bulkDownloadItems.slice();
+      isBulkDownload = false;
+      bulkDownloadItems = [];
+      showToast(`Review submitted! Starting ${items.length} downloads...`, 'success');
+      items.forEach((r, i) => {
+        setTimeout(() => {
+          if (r.downloadUrl) {
+            const ext = r.downloadUrl.match(/\.(\w+)(?:\?|$)/)?.[1] || 'mp4';
+            const label = (r.title || `Bulk_${i + 1}`).substring(0, 60).replace(/[^a-z0-9]/gi, '_');
+            downloadViaBlob(r.downloadUrl, `${label}.${ext}`);
+          } else {
+            downloadBulkFallback(r, i);
+          }
+        }, i * 600);
+      });
+    } else if (pendingDownloadQuality && pendingDownloadExt) {
       startMockDownload(pendingDownloadQuality, pendingDownloadExt, pendingRealDownloadUrl);
     }
   });
@@ -631,7 +901,6 @@ document.addEventListener('DOMContentLoaded', () => {
             <div class="review-user-avatar">${avatarLetter}</div>
             <div>
               <span class="review-user-name">${r.name}</span>
-              <span class="review-badge">Verified Download</span>
             </div>
           </div>
           <div class="review-card-rating">
@@ -654,139 +923,65 @@ document.addEventListener('DOMContentLoaded', () => {
     avgRatingStars.textContent = '★'.repeat(roundedScore) + '☆'.repeat(5 - roundedScore);
   }
 
-  // 7. Actual Device File Download Trigger (CORS-free dynamic generation)
+  // 7. Fallback — open thumbnail or original source URL
   function triggerActualDeviceDownload(qualityName, extension) {
-    const extLower = extension.toLowerCase();
-    const platformLabel = metaPlatform.textContent || 'Social';
-    const videoTitleStr = videoTitle.textContent || 'Media File';
+    const ext = extension.toLowerCase();
+    const isImage = ext === 'jpg' || ext === 'jpeg' || ext === 'png' || ext === 'webp';
 
-    if (extLower === 'png' || extLower === 'jpg' || extLower === 'webp') {
-      // Create a canvas image to trigger a real visual graphic download
-      const canvas = document.createElement('canvas');
-      canvas.width = 1280;
-      canvas.height = 720;
-      const ctx = canvas.getContext('2d');
+    if (isImage) {
+      const thumb = document.getElementById('video-thumbnail');
+      const src = thumb && !thumb.hidden ? thumb.src : null;
+      if (src) { window.open(src, '_blank'); return; }
+    }
+    window.open(lastInputUrl, '_blank');
+  }
 
-      // Gradient background
-      const grad = ctx.createLinearGradient(0, 0, 1280, 720);
-      grad.addColorStop(0, '#1e1b4b');
-      grad.addColorStop(0.5, '#4c1d95');
-      grad.addColorStop(1, '#0f172a');
-      ctx.fillStyle = grad;
-      ctx.fillRect(0, 0, 1280, 720);
-
-      // Neon highlight circles
-      ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
-      ctx.beginPath();
-      ctx.arc(200, 150, 300, 0, Math.PI * 2);
-      ctx.fill();
-
-      ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
-      ctx.beginPath();
-      ctx.arc(1080, 570, 250, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Brand Logo circle
-      ctx.strokeStyle = '#a855f7';
-      ctx.lineWidth = 12;
-      ctx.beginPath();
-      ctx.arc(640, 200, 70, 0, Math.PI * 2);
-      ctx.stroke();
-
-      // Play icon polygon
-      ctx.fillStyle = '#a855f7';
-      ctx.beginPath();
-      ctx.moveTo(625, 160);
-      ctx.lineTo(670, 200);
-      ctx.lineTo(625, 240);
-      ctx.closePath();
-      ctx.fill();
-
-      // Text Header
-      ctx.fillStyle = '#ffffff';
-      ctx.font = 'bold 48px Outfit, sans-serif';
-      ctx.textAlign = 'center';
-      ctx.fillText('VeloDownloader', 640, 340);
-
-      // Subtitle
-      ctx.fillStyle = '#9f9baa';
-      ctx.font = '24px Outfit, sans-serif';
-      ctx.fillText('Your high-quality image download is complete!', 640, 400);
-
-      // Details Box background
-      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
-      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
-      ctx.lineWidth = 1;
-      ctx.beginPath();
-      if (typeof ctx.roundRect === 'function') {
-        ctx.roundRect(240, 460, 800, 150, 16);
-      } else {
-        ctx.rect(240, 460, 800, 150);
-      }
-      ctx.fill();
-      ctx.stroke();
-
-      // Details Text
-      ctx.fillStyle = '#f3f1f6';
-      ctx.font = 'bold 22px Outfit, sans-serif';
-      ctx.textAlign = 'left';
-      ctx.fillText(`File Title: ${videoTitleStr.substring(0, 50)}...`, 270, 505);
-      
-      ctx.fillStyle = '#9f9baa';
-      ctx.font = '18px Outfit, sans-serif';
-      ctx.fillText(`Source Platform: ${platformLabel}`, 270, 545);
-      ctx.fillText(`Format & Resolution: ${qualityName.toUpperCase()} (${extension.toUpperCase()})`, 270, 575);
-
-      // Date Text
-      ctx.textAlign = 'right';
-      ctx.font = '16px monospace';
-      ctx.fillStyle = '#6b667a';
-      ctx.fillText(`Timestamp: ${new Date().toLocaleString()}`, 1010, 575);
-
-      // Convert to blob and download
-      canvas.toBlob((blob) => {
-        const downloadUrl = URL.createObjectURL(blob);
-        const a = document.createElement('a');
-        a.href = downloadUrl;
-        a.download = `VeloDownloader_${platformLabel.toLowerCase()}_${qualityName.replace(/\s+/g, '_')}.${extLower}`;
-        document.body.appendChild(a);
-        a.click();
-        document.body.removeChild(a);
-        URL.revokeObjectURL(downloadUrl);
-      }, `image/${extLower === 'jpg' ? 'jpeg' : extLower}`);
-    } else {
-      // Create a mock stream file for video/audio
-      const headerText = `=====================================================
-VELODOWNLOADER - MEDIA DOWNLOAD STREAM
-=====================================================
-File Type: ${extLower.toUpperCase()} File
-Quality: ${qualityName}
-Source Platform: ${platformLabel}
-File Title: ${videoTitleStr}
-Download Date: ${new Date().toString()}
-
-Status: SUCCESS
-Download Rate: 12.5 MB/s
-MD5 Hash Checksum: d41d8cd98f00b204e9800998ecf8427e
-
------------------------------------------------------
-Note: This is a high-fidelity simulated file downloaded
-via the VeloDownloader frontend presentation pipeline.
------------------------------------------------------`;
-
-      const blob = new Blob([headerText], { type: 'text/plain' });
-      const downloadUrl = URL.createObjectURL(blob);
+  // 8. Download handler
+  function downloadViaBlob(url, filename) {
+    if (!url) return;
+    
+    // Blob URLs are always same-origin for anchor download purposes
+    if (url.startsWith('blob:') || url.startsWith('data:')) {
       const a = document.createElement('a');
-      a.href = downloadUrl;
-      a.download = `VeloDownloader_${platformLabel.toLowerCase()}_${qualityName.replace(/\s+/g, '_')}.${extLower}`;
+      a.href = url;
+      a.download = filename || 'download';
+      a.style.display = 'none';
       document.body.appendChild(a);
       a.click();
       document.body.removeChild(a);
-      URL.revokeObjectURL(downloadUrl);
+      if (url.startsWith('blob:')) URL.revokeObjectURL(url);
+      return;
     }
+    
+    // Check if URL is cross-origin
+    const urlObj = new URL(url);
+    const isCrossOrigin = urlObj.origin !== window.location.origin;
+    
+    if (isCrossOrigin) {
+      // Cross-origin: use window.open — browser will download if server sends Content-Disposition: attachment
+      window.open(url, '_blank');
+      return;
+    }
+    
+    // Same-origin: use anchor click
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = filename || 'download';
+    a.style.display = 'none';
+    document.body.appendChild(a);
+    a.click();
+    document.body.removeChild(a);
   }
 
-  // 8. Simulated Downloader Loops
+  // Fallback for bulk items without a real download URL
+  function downloadBulkFallback(item, index) {
+    if (item.oembedData && item.oembedData.thumbnail_url) {
+      window.open(item.oembedData.thumbnail_url, '_blank');
+      return;
+    }
+    window.open(item.url, '_blank');
+  }
+
   function startMockDownload(qualityName, extension, realDownloadUrl) {
     resetProgress();
 
@@ -798,19 +993,13 @@ via the VeloDownloader frontend presentation pipeline.
 
     let percent = 0;
     const fileLabel = `${qualityName} (${extension})`;
-    progressStatus.textContent = `Connecting to high-speed server...`;
+    progressStatus.textContent = `Connecting to server...`;
 
-    // Start the download immediately in the background via hidden iframe with no-referrer
     if (realDownloadUrl) {
-      let iframe = document.getElementById('download-iframe');
-      if (!iframe) {
-        iframe = document.createElement('iframe');
-        iframe.id = 'download-iframe';
-        iframe.style.display = 'none';
-        iframe.setAttribute('referrerpolicy', 'no-referrer');
-        document.body.appendChild(iframe);
-      }
-      iframe.src = realDownloadUrl;
+      downloadViaBlob(realDownloadUrl, `${fileLabel}`);
+    } else {
+      // Fallback: generate a file with the real video metadata embedded
+      triggerActualDeviceDownload(qualityName, extension);
     }
 
     activeDownloadInterval = setInterval(() => {
@@ -826,16 +1015,10 @@ via the VeloDownloader frontend presentation pipeline.
         progressStatus.textContent = 'Saving file...';
         
         setTimeout(() => {
-          if (!realDownloadUrl) {
-            // Trigger actual device download fallback
-            triggerActualDeviceDownload(qualityName, extension);
-          }
-
           showToast(`Success! Your ${fileLabel} file has been saved to your device.`, 'success');
           optionBtns.forEach(b => b.disabled = false);
           progressContainer.hidden = true;
           
-          // Reset pending download references
           pendingDownloadQuality = null;
           pendingDownloadExt = null;
           pendingRealDownloadUrl = null;
