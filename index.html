@@ -1,0 +1,251 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <meta name="description" content="Download high-quality videos from YouTube, TikTok, Instagram, Twitter/X, and Facebook instantly. Free, fast, and no registration required.">
+  <title>VeloDownloader | Premium Multi-Platform Video Downloader</title>
+  
+  <!-- Premium Typography -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  
+  <!-- Custom Styling -->
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <!-- Ambient background glow elements -->
+  <div class="ambient-glow orb-1"></div>
+  <div class="ambient-glow orb-2"></div>
+  <div class="ambient-glow orb-3"></div>
+
+  <div class="app-container">
+    <header class="app-header">
+      <div class="logo-container">
+        <!-- Modern SVG Logo -->
+        <svg class="app-logo" viewBox="0 0 100 100" width="50" height="50">
+          <defs>
+            <linearGradient id="logo-grad" x1="0%" y1="0%" x2="100%" y2="100%">
+              <stop offset="0%" stop-color="#a855f7" />
+              <stop offset="100%" stop-color="#3b82f6" />
+            </linearGradient>
+          </defs>
+          <circle cx="50" cy="50" r="45" fill="none" stroke="url(#logo-grad)" stroke-width="8" />
+          <polygon points="40,30 70,50 40,70" fill="url(#logo-grad)" />
+          <path d="M 30,80 L 70,80" stroke="url(#logo-grad)" stroke-width="6" stroke-linecap="round" />
+        </svg>
+        <span class="logo-text">Velo<span class="gradient-text">Downloader</span></span>
+      </div>
+      <p class="tagline">Extract and download media from your favorite social platforms instantly</p>
+    </header>
+
+    <main class="main-card">
+      <h1 class="main-title">Enter Video Link to Start</h1>
+      
+      <!-- Platform Selector -->
+      <section class="platform-selector-wrapper" aria-label="Select platform">
+        <span class="selector-label">Supported Platforms</span>
+        <div class="platform-list">
+          <button class="platform-btn active" id="btn-auto" data-platform="auto" aria-label="Auto detect platform">
+            <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2">
+              <path d="M12 2v20M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/>
+            </svg>
+            <span>Auto Detect</span>
+          </button>
+          <button class="platform-btn" id="btn-youtube" data-platform="youtube" aria-label="YouTube">
+            <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M23.498 6.163a3.003 3.003 0 0 0-2.11-2.11C19.517 3.545 12 3.545 12 3.545s-7.517 0-9.388.508a3.003 3.003 0 0 0-2.11 2.11C0 8.033 0 12 0 12s0 3.967.502 5.837a3.003 3.003 0 0 0 2.11 2.11c1.871.508 9.388.508 9.388.508s7.517 0 9.388-.508a3.002 3.002 0 0 0 2.11-2.11C24 15.967 24 12 24 12s0-3.967-.502-5.837zM9.545 15.568V8.432L15.818 12l-6.273 3.568z"/>
+            </svg>
+            <span>YouTube</span>
+          </button>
+          <button class="platform-btn" id="btn-tiktok" data-platform="tiktok" aria-label="TikTok">
+            <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.17-2.89-.74-3.94-1.78-.22-.22-.43-.47-.62-.73v7.02c.01 2.44-1.07 4.87-3.07 6.1-2.4 1.55-5.69 1.5-7.96-.22-2.28-1.65-3.32-4.66-2.53-7.4.67-2.46 2.66-4.4 5.17-4.88 1.1-.21 2.24-.07 3.29.35v4.02c-.85-.35-1.84-.41-2.71-.08-1.22.42-2.14 1.59-2.28 2.87-.24 1.61.76 3.23 2.31 3.69 1.54.49 3.32-.22 3.99-1.68.21-.45.28-.96.27-1.46V.02z"/>
+            </svg>
+            <span>TikTok</span>
+          </button>
+          <button class="platform-btn" id="btn-instagram" data-platform="instagram" aria-label="Instagram">
+            <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <rect x="2" y="2" width="20" height="20" rx="5" ry="5"/>
+              <path d="M16 11.37A4 4 0 1 1 12.63 8 4 4 0 0 1 16 11.37z"/>
+              <line x1="17.5" y1="6.5" x2="17.51" y2="6.5"/>
+            </svg>
+            <span>Instagram</span>
+          </button>
+          <button class="platform-btn" id="btn-twitter" data-platform="twitter" aria-label="Twitter/X">
+            <!-- Modern X logo -->
+            <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M18.244 2.25h3.308l-7.227 8.26 8.502 11.24H16.17l-5.214-6.817L4.99 21.75H1.68l7.73-8.835L1.254 2.25H8.08l4.713 6.231zm-1.161 17.52h1.833L7.084 4.126H5.117z"/>
+            </svg>
+            <span>Twitter/X</span>
+          </button>
+          <button class="platform-btn" id="btn-facebook" data-platform="facebook" aria-label="Facebook">
+            <svg class="btn-icon" viewBox="0 0 24 24" width="18" height="18" fill="currentColor">
+              <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+            </svg>
+            <span>Facebook</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- URL Input Section -->
+      <section class="input-section" aria-label="Input URL">
+        <form class="input-form" id="downloader-form">
+          <div class="input-group">
+            <input 
+              type="url" 
+              id="video-url" 
+              class="url-input" 
+              placeholder=" " 
+              required 
+              autocomplete="off"
+              aria-label="Paste video link here"
+            >
+            <label for="video-url" class="input-label">Paste video or media link here...</label>
+            <button type="button" id="btn-clear" class="clear-btn" aria-label="Clear input">
+              <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+                <line x1="18" y1="6" x2="6" y2="18"/>
+                <line x1="6" y1="6" x2="18" y2="18"/>
+              </svg>
+            </button>
+          </div>
+          <button type="submit" id="btn-fetch" class="fetch-btn">
+            <span class="btn-text">Analyze Link</span>
+            <div class="btn-loader" hidden>
+              <div class="spinner"></div>
+            </div>
+          </button>
+        </form>
+        <p class="error-msg" id="url-error" hidden></p>
+      </section>
+
+      <!-- Results Card (Hidden by default, shown after URL analysis) -->
+      <section class="results-card" id="results-card" hidden>
+        <div class="results-layout">
+          <!-- Video Information / Thumbnail Graphic -->
+          <div class="media-preview-container">
+            <div class="media-preview-graphic">
+              <!-- Animated SVG simulating video thumbnail loading -->
+              <svg viewBox="0 0 160 90" class="preview-svg">
+                <rect width="100%" height="100%" fill="var(--preview-bg, rgba(255,255,255,0.03))" rx="8" />
+                <path d="M65,30 L105,45 L65,60 Z" fill="var(--platform-accent, #3b82f6)" opacity="0.85" />
+                <circle cx="80" cy="45" r="30" stroke="var(--platform-accent, #3b82f6)" stroke-dasharray="6" stroke-width="2" fill="none" class="rotating-ring" />
+              </svg>
+              <span class="duration-badge" id="video-duration">03:45</span>
+            </div>
+            <div class="media-details">
+              <h2 class="video-title" id="video-title">Extracting video details...</h2>
+              <div class="video-meta">
+                <span class="meta-tag platform-tag" id="meta-platform">YouTube</span>
+                <span class="meta-tag uploader-tag" id="meta-author">@creator</span>
+              </div>
+            </div>
+          </div>
+
+          <!-- Download Options List -->
+          <div class="download-options">
+            <h3 class="options-title">Available Downloads</h3>
+            
+            <div class="options-list">
+              <!-- 1080p Option -->
+              <div class="option-row">
+                <div class="option-info">
+                  <span class="option-quality">1080p HD</span>
+                  <span class="option-details">MP4 • 60 FPS • 42.5 MB</span>
+                </div>
+                <button class="download-option-btn" data-quality="1080p" aria-label="Download 1080p">
+                  <span>Download</span>
+                </button>
+              </div>
+
+              <!-- 720p Option -->
+              <div class="option-row">
+                <div class="option-info">
+                  <span class="option-quality">720p SD</span>
+                  <span class="option-details">MP4 • 30 FPS • 18.2 MB</span>
+                </div>
+                <button class="download-option-btn" data-quality="720p" aria-label="Download 720p">
+                  <span>Download</span>
+                </button>
+              </div>
+
+              <!-- MP3 Option -->
+              <div class="option-row">
+                <div class="option-info">
+                  <span class="option-quality">Audio Only</span>
+                  <span class="option-details">MP3 • 320kbps • 5.1 MB</span>
+                </div>
+                <button class="download-option-btn" data-quality="mp3" aria-label="Download MP3 Audio">
+                  <span>Extract MP3</span>
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>
+
+        <!-- Download Progress Area (Hidden by default, shown during download action) -->
+        <div class="download-progress-container" id="progress-container" hidden>
+          <div class="progress-info">
+            <span class="progress-status" id="progress-status">Downloading file...</span>
+            <span class="progress-percent" id="progress-percent">0%</span>
+          </div>
+          <div class="progress-bar-wrapper">
+            <div class="progress-bar-fill" id="progress-bar-fill"></div>
+          </div>
+          <button class="cancel-download-btn" id="btn-cancel-download">Cancel Download</button>
+        </div>
+      </section>
+    </main>
+
+    <!-- App Features / Showcase -->
+    <section class="features-grid">
+      <div class="feature-card">
+        <div class="feature-icon-wrapper">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="m8 3 4 8 5-5 5 15H2L8 3z"/>
+          </svg>
+        </div>
+        <h3>Lightning Fast</h3>
+        <p>Get your video links fetched and analyzed within milliseconds, ready for download.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-wrapper">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <rect x="3" y="11" width="18" height="11" rx="2" ry="2"/>
+            <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+          </svg>
+        </div>
+        <h3>Safe & Secure</h3>
+        <p>No account required, no ad-ware, and no trackable tracking cookies. Pure utility.</p>
+      </div>
+      <div class="feature-card">
+        <div class="feature-icon-wrapper">
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" stroke-width="2">
+            <path d="M12 22c5.523 0 10-4.477 10-10S17.523 2 12 2 2 6.477 2 12s4.477 10 10 10z"/>
+            <path d="m9 12 2 2 4-4"/>
+          </svg>
+        </div>
+        <h3>Unlimited Downloads</h3>
+        <p>Convert and download as many videos as you want without any hidden caps or limits.</p>
+      </div>
+    </section>
+
+    <!-- Footer -->
+    <footer class="app-footer">
+      <p>&copy; 2026 VeloDownloader. Built with speed and privacy in mind.</p>
+      <div class="footer-links">
+        <a href="#privacy">Privacy</a>
+        <a href="#terms">Terms of Service</a>
+        <a href="#contact">Contact</a>
+      </div>
+    </footer>
+  </div>
+
+  <!-- Custom Floating Toast Container -->
+  <div class="toast-container" id="toast-container"></div>
+
+  <!-- Main JavaScript File -->
+  <script src="app.js"></script>
+</body>
+</html>
