@@ -13,7 +13,6 @@ document.addEventListener('DOMContentLoaded', () => {
   const downloaderHeading = document.getElementById('downloader-heading');
   const inputFloatingLabel = document.getElementById('input-floating-label');
   const platformButtons = document.querySelectorAll('.platform-btn');
-  const platformLabelTxt = document.getElementById('platform-label-txt');
   
   const resultsCard = document.getElementById('results-card');
   const videoTitle = document.getElementById('video-title');
@@ -29,13 +28,55 @@ document.addEventListener('DOMContentLoaded', () => {
   const progressPercent = document.getElementById('progress-percent');
   const progressBarFill = document.getElementById('progress-bar-fill');
   const cancelDownloadBtn = document.getElementById('btn-cancel-download');
+
+  // Review Modal DOM Elements
+  const reviewModalOverlay = document.getElementById('review-modal-overlay');
+  const btnCloseReviewModal = document.getElementById('btn-close-review-modal');
+  const reviewForm = document.getElementById('review-form');
+  const starSelectBtns = document.querySelectorAll('.star-select-btn');
+  const selectedStarsVal = document.getElementById('selected-stars-val');
+  const reviewNameInput = document.getElementById('review-name');
+  const reviewCommentInput = document.getElementById('review-comment');
+
+  // Reviews List DOM Elements
+  const reviewsList = document.getElementById('reviews-list');
+  const avgRatingValue = document.getElementById('avg-rating-value');
+  const avgRatingStars = document.getElementById('avg-rating-stars');
+  const totalReviewsCount = document.getElementById('total-reviews-count');
   
   const toastContainer = document.getElementById('toast-container');
 
   // App State
-  let currentMode = 'video'; // 'video' or 'image'
+  let currentMode = 'video';
   let currentPlatform = 'auto';
   let activeDownloadInterval = null;
+
+  // Review Gating State
+  let pendingDownloadQuality = null;
+  let pendingDownloadExt = null;
+  let currentRatingSelection = 5;
+
+  // Local Review Data Array for dynamic rendering and SEO
+  const reviewsData = [
+    {
+      name: 'Sarah Jenkins',
+      rating: 5,
+      date: 'July 11, 2026',
+      comment: 'Absolutely love VeloDownloader! Downloaded a 1080p YouTube video in literally 3 seconds. The interface is super clean and minimal, no annoying popup ads like other sites. Highly recommended!'
+    },
+    {
+      name: 'Alex Rivera',
+      rating: 5,
+      date: 'July 10, 2026',
+      comment: 'Works perfectly for Instagram Reels and TikTok videos without watermarks. Switched to the image downloader tab and got high-resolution PNG photos instantly too. Great utility page!'
+    },
+    {
+      name: 'David Kim',
+      rating: 4,
+      date: 'July 08, 2026',
+      comment: 'Very solid and quick. I use it to grab background clips and audio MP3 formats. It requires a 5-second review to download but considering it is totally free and safe, it is totally worth it.'
+    }
+  ];
 
   // Configuration Templates
   const platformConfigs = {
@@ -49,7 +90,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { label: '720p HD Quality', ext: 'MP4', detail: '30 FPS • 18.2 MB', quality: '720p' },
         { label: 'Audio Extract', ext: 'MP3', detail: '320kbps • 5.1 MB', quality: 'mp3' }
       ],
-      svgIconPath: 'M65,30 L105,45 L65,60 Z' // Play icon
+      svgIconPath: 'M65,30 L105,45 L65,60 Z'
     },
     image: {
       heading: 'Paste Image URL to Download',
@@ -61,7 +102,7 @@ document.addEventListener('DOMContentLoaded', () => {
         { label: 'High Quality', ext: 'JPG', detail: 'Optimized Size • 2.2 MB', quality: 'high' },
         { label: 'WebP Compressed', ext: 'WEBP', detail: 'Super Small File • 1.1 MB', quality: 'webp' }
       ],
-      svgIconPath: 'M50 25 h20 v20 h-20 z M40 65 l20 -20 l15 15 l20 -30 l25 35 z' // Camera landscape icon placeholder path
+      svgIconPath: 'M50 25 h20 v20 h-20 z M40 65 l20 -20 l15 15 l20 -30 l25 35 z'
     }
   };
 
@@ -112,7 +153,6 @@ document.addEventListener('DOMContentLoaded', () => {
     root.style.setProperty('--platform-accent', theme.accent);
     root.style.setProperty('--platform-glow', theme.glow);
     
-    // Update floating input label text
     const config = platformConfigs[currentMode];
     if (platformKey === 'auto') {
       inputFloatingLabel.textContent = config.floatingLabel;
@@ -157,7 +197,6 @@ document.addEventListener('DOMContentLoaded', () => {
     if (currentMode === newMode) return;
     currentMode = newMode;
     
-    // UI states
     if (currentMode === 'video') {
       tabVideo.classList.add('active');
       tabVideo.setAttribute('aria-selected', 'true');
@@ -174,7 +213,6 @@ document.addEventListener('DOMContentLoaded', () => {
     downloaderHeading.textContent = config.heading;
     fetchBtnText.textContent = config.btnText;
     
-    // Reset Input
     urlInput.value = '';
     urlError.hidden = true;
     urlInput.classList.remove('invalid');
@@ -193,7 +231,6 @@ document.addEventListener('DOMContentLoaded', () => {
   tabVideo.addEventListener('click', () => switchMode('video'));
   tabImage.addEventListener('click', () => switchMode('image'));
 
-  // Listen to platform selector button clicks
   platformButtons.forEach(btn => {
     btn.addEventListener('click', () => {
       platformButtons.forEach(b => b.classList.remove('active'));
@@ -208,7 +245,6 @@ document.addEventListener('DOMContentLoaded', () => {
     });
   });
 
-  // URL Input event handlers
   urlInput.addEventListener('input', (e) => {
     const val = e.target.value.trim();
     if (val) {
@@ -232,11 +268,11 @@ document.addEventListener('DOMContentLoaded', () => {
     resetProgress();
   });
 
-  // Render format choices inside Results Card
+  // Render download option lists
   function renderFormatOptions(mode) {
     const config = platformConfigs[mode];
     optionsTitleTxt.textContent = config.optionsTitle;
-    optionsListContainer.innerHTML = ''; // Clear
+    optionsListContainer.innerHTML = '';
 
     config.formats.forEach(f => {
       const row = document.createElement('div');
@@ -253,17 +289,21 @@ document.addEventListener('DOMContentLoaded', () => {
       optionsListContainer.appendChild(row);
     });
 
-    // Attach listeners to newly created buttons
+    // Intercept download button and trigger the review modal!
     optionsListContainer.querySelectorAll('.download-option-btn').forEach(btn => {
       btn.addEventListener('click', () => {
         const qualityName = btn.closest('.option-row').querySelector('.option-quality').textContent;
         const extension = btn.dataset.ext;
-        startMockDownload(qualityName, extension);
+        
+        // Save pending download info and prompt review modal
+        pendingDownloadQuality = qualityName;
+        pendingDownloadExt = extension;
+        openReviewModal();
       });
     });
   }
 
-  // 4. Submit URL & Mock File Analysis
+  // 4. Submit URL & Analysis
   form.addEventListener('submit', (e) => {
     e.preventDefault();
     const url = urlInput.value.trim();
@@ -283,7 +323,6 @@ document.addEventListener('DOMContentLoaded', () => {
     const platform = currentPlatform === 'auto' ? detectPlatform(url) : currentPlatform;
     const platformLabel = platform === 'auto' ? 'Web Link' : platform.charAt(0).toUpperCase() + platform.slice(1);
 
-    // Button loading animation
     fetchBtn.disabled = true;
     fetchBtnText.style.opacity = '0.3';
     fetchBtnLoader.hidden = false;
@@ -297,7 +336,6 @@ document.addEventListener('DOMContentLoaded', () => {
       fetchBtnText.style.opacity = '1';
       fetchBtnLoader.hidden = true;
 
-      // Mock Titles for Video vs Image
       const titles = {
         video: {
           youtube: 'How to build beautiful Web interfaces in 2026 (Full Tutorial)',
@@ -318,12 +356,10 @@ document.addEventListener('DOMContentLoaded', () => {
       const matchedTitle = titles[currentMode][platform] || titles[currentMode]['auto'];
       const creatorName = platform !== 'auto' ? `@creator_${platform}` : '@web_media';
 
-      // Set Info
       videoTitle.textContent = matchedTitle;
       metaPlatform.textContent = platformLabel;
       metaAuthor.textContent = creatorName;
       
-      // Update Graphic icon path & Duration badge visibility
       const config = platformConfigs[currentMode];
       previewMediaTypeIcon.setAttribute('d', config.svgIconPath);
       
@@ -333,21 +369,17 @@ document.addEventListener('DOMContentLoaded', () => {
         durationBadge.textContent = durationStr;
         durationBadge.style.display = 'block';
       } else {
-        durationBadge.style.display = 'none'; // Images don't have duration
+        durationBadge.style.display = 'none';
       }
 
-      // Set platform colors on results card
       resultsCard.style.setProperty('--platform-accent', platformColors[platform].accent);
       resultsCard.style.setProperty('--platform-glow', platformColors[platform].glow);
       
-      // Set preview SVG highlight
       const previewSvg = resultsCard.querySelector('.preview-svg');
       previewSvg.style.setProperty('--platform-accent', platformColors[platform].accent);
 
-      // Render tab-specific file downloads
       renderFormatOptions(currentMode);
       
-      // Reveal results card
       resultsCard.hidden = false;
       resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
       
@@ -355,11 +387,148 @@ document.addEventListener('DOMContentLoaded', () => {
     }, 1500);
   });
 
-  // 5. Simulated Downloader Loops
+  // 5. Review Gating Modal Logic
+  function openReviewModal() {
+    // Reset Form fields
+    reviewNameInput.value = '';
+    reviewCommentInput.value = '';
+    setStarSelection(5); // Default to 5 stars
+    
+    // Show Modal
+    reviewModalOverlay.hidden = false;
+    reviewNameInput.focus();
+  }
+
+  function closeReviewModal() {
+    reviewModalOverlay.hidden = true;
+  }
+
+  btnCloseReviewModal.addEventListener('click', () => {
+    closeReviewModal();
+    showToast('Download locked. Review submission is required to fetch files.', 'error');
+  });
+
+  // Star Selection Visual Handlers
+  function setStarSelection(rating) {
+    currentRatingSelection = rating;
+    selectedStarsVal.value = rating;
+    
+    starSelectBtns.forEach(btn => {
+      const val = parseInt(btn.dataset.value);
+      if (val <= rating) {
+        btn.classList.add('active');
+      } else {
+        btn.classList.remove('active');
+      }
+    });
+  }
+
+  starSelectBtns.forEach(btn => {
+    // Handle Hover Highlighting
+    btn.addEventListener('mouseover', () => {
+      const val = parseInt(btn.dataset.value);
+      starSelectBtns.forEach(b => {
+        const itemVal = parseInt(b.dataset.value);
+        if (itemVal <= val) {
+          b.classList.add('hover');
+        } else {
+          b.classList.remove('hover');
+        }
+      });
+    });
+
+    btn.addEventListener('mouseout', () => {
+      starSelectBtns.forEach(b => b.classList.remove('hover'));
+    });
+
+    // Handle Selection Lock
+    btn.addEventListener('click', () => {
+      const val = parseInt(btn.dataset.value);
+      setStarSelection(val);
+    });
+  });
+
+  // Handle Review Form Submission
+  reviewForm.addEventListener('submit', (e) => {
+    e.preventDefault();
+    const name = reviewNameInput.value.trim();
+    const comment = reviewCommentInput.value.trim();
+    const rating = currentRatingSelection;
+
+    if (!name || !comment || !rating) return;
+
+    // Create Review Object
+    const dateOptions = { year: 'numeric', month: 'long', day: 'numeric' };
+    const today = new Date().toLocaleDateString('en-US', dateOptions);
+    const newReview = {
+      name: name,
+      rating: rating,
+      date: today,
+      comment: comment
+    };
+
+    // Prepend to array
+    reviewsData.unshift(newReview);
+    
+    // Render reviews list
+    renderReviews();
+    
+    // Close Modal and proceed with download
+    closeReviewModal();
+    showToast('Review submitted! Starting your download...', 'success');
+    
+    // Trigger download
+    if (pendingDownloadQuality && pendingDownloadExt) {
+      startMockDownload(pendingDownloadQuality, pendingDownloadExt);
+    }
+  });
+
+  // 6. Dynamic Reviews Rendering and SEO Scoring Calculations
+  function renderReviews() {
+    reviewsList.innerHTML = '';
+    let totalStars = 0;
+    
+    reviewsData.forEach(r => {
+      totalStars += r.rating;
+      
+      const avatarLetter = r.name.charAt(0).toUpperCase();
+      const starsStr = '★'.repeat(r.rating) + '☆'.repeat(5 - r.rating);
+      
+      const card = document.createElement('div');
+      card.className = 'review-card';
+      card.innerHTML = `
+        <div class="review-card-header">
+          <div class="review-card-user">
+            <div class="review-user-avatar">${avatarLetter}</div>
+            <div>
+              <span class="review-user-name">${r.name}</span>
+              <span class="review-badge">Verified Download</span>
+            </div>
+          </div>
+          <div class="review-card-rating">
+            <span class="review-stars">${starsStr}</span>
+            <span class="review-date">${r.date}</span>
+          </div>
+        </div>
+        <p class="review-card-comment">"${r.comment}"</p>
+      `;
+      reviewsList.appendChild(card);
+    });
+
+    // Calculate Average
+    const avgScore = (totalStars / reviewsData.length).toFixed(1);
+    avgRatingValue.textContent = avgScore;
+    totalReviewsCount.textContent = (1250 + reviewsData.length).toLocaleString(); // Simulate base stats
+
+    // Update Average Stars Display
+    const roundedScore = Math.round(parseFloat(avgScore));
+    avgRatingStars.textContent = '★'.repeat(roundedScore) + '☆'.repeat(5 - roundedScore);
+  }
+
+  // 7. Simulated Downloader Loops
   function startMockDownload(qualityName, extension) {
     resetProgress();
 
-    // Disable all options while download runs
     const optionBtns = optionsListContainer.querySelectorAll('.download-option-btn');
     optionBtns.forEach(b => b.disabled = true);
     
@@ -368,9 +537,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     let percent = 0;
     const fileLabel = `${qualityName} (${extension})`;
-    progressStatus.textContent = `Connecting to server...`;
-    
-    showToast(`Download started for ${fileLabel}`, 'success');
+    progressStatus.textContent = `Connecting to high-speed server...`;
 
     activeDownloadInterval = setInterval(() => {
       percent += Math.floor(Math.random() * 5) + 3;
@@ -382,12 +549,16 @@ document.addEventListener('DOMContentLoaded', () => {
         
         progressPercent.textContent = '100%';
         progressBarFill.style.width = '100%';
-        progressStatus.textContent = 'Assembly complete!';
+        progressStatus.textContent = 'Saving file...';
         
         setTimeout(() => {
           showToast(`Success! Your ${fileLabel} file has been saved to your device.`, 'success');
           optionBtns.forEach(b => b.disabled = false);
           progressContainer.hidden = true;
+          
+          // Reset pending download references
+          pendingDownloadQuality = null;
+          pendingDownloadExt = null;
         }, 800);
       } else {
         if (percent > 10 && percent < 90) {
@@ -404,6 +575,8 @@ document.addEventListener('DOMContentLoaded', () => {
   cancelDownloadBtn.addEventListener('click', () => {
     resetProgress();
     showToast('Download canceled', 'error');
+    pendingDownloadQuality = null;
+    pendingDownloadExt = null;
   });
 
   function resetProgress() {
@@ -419,4 +592,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const optionBtns = optionsListContainer.querySelectorAll('.download-option-btn');
     optionBtns.forEach(b => b.disabled = false);
   }
+
+  // Run initial ratings display
+  renderReviews();
 });
