@@ -56,6 +56,14 @@ document.addEventListener('DOMContentLoaded', () => {
   let pendingDownloadExt = null;
   let currentRatingSelection = 5;
 
+  // Cobalt API list & real download target
+  const cobaltEndpoints = [
+    "https://api.cobalt.liubquanti.click/",
+    "https://cobaltapi.kittycat.boo/",
+    "https://dog.kittycat.boo/"
+  ];
+  let pendingRealDownloadUrl = null;
+
   // Local Review Data Array for dynamic rendering and SEO
   const reviewsData = [
     {
@@ -268,8 +276,38 @@ document.addEventListener('DOMContentLoaded', () => {
     resetProgress();
   });
 
+  // Helper to fetch from Cobalt trying each instance as fallback
+  async function fetchFromCobalt(payload) {
+    for (const endpoint of cobaltEndpoints) {
+      try {
+        const response = await fetch(endpoint, {
+          method: 'POST',
+          headers: {
+            'Accept': 'application/json',
+            'Content-Type': 'application/json'
+          },
+          body: JSON.stringify(payload)
+        });
+        
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}`);
+        }
+        
+        const data = await response.json();
+        if (data && (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect' || data.status === 'picker')) {
+          return data;
+        } else if (data && data.status === 'error') {
+          console.warn(`Cobalt endpoint ${endpoint} returned error:`, data.error);
+        }
+      } catch (err) {
+        console.warn(`Failed to fetch from Cobalt endpoint ${endpoint}:`, err);
+      }
+    }
+    throw new Error("All Cobalt API endpoints failed or returned errors.");
+  }
+
   // Render download option lists
-  function renderFormatOptions(mode) {
+  function renderFormatOptions(mode, realVideoUrl, originalInputUrl) {
     const config = platformConfigs[mode];
     optionsTitleTxt.textContent = config.optionsTitle;
     optionsListContainer.innerHTML = '';
@@ -291,9 +329,36 @@ document.addEventListener('DOMContentLoaded', () => {
 
     // Intercept download button and trigger the review modal!
     optionsListContainer.querySelectorAll('.download-option-btn').forEach(btn => {
-      btn.addEventListener('click', () => {
+      btn.addEventListener('click', async () => {
         const qualityName = btn.closest('.option-row').querySelector('.option-quality').textContent;
         const extension = btn.dataset.ext;
+        
+        // Reset real download reference
+        pendingRealDownloadUrl = null;
+
+        if (realVideoUrl) {
+          // If we have a real download link from Cobalt
+          if (extension === 'MP3') {
+            // If they clicked MP3, fetch the audio format link in the background
+            btn.disabled = true;
+            const originalText = btn.textContent;
+            btn.textContent = 'Fetching...';
+            try {
+              const audioData = await fetchFromCobalt({
+                url: originalInputUrl,
+                audioOnly: true
+              });
+              pendingRealDownloadUrl = audioData.url;
+            } catch (err) {
+              console.warn("Failed to fetch audio stream, falling back to main url", err);
+              pendingRealDownloadUrl = realVideoUrl;
+            }
+            btn.disabled = false;
+            btn.textContent = originalText;
+          } else {
+            pendingRealDownloadUrl = realVideoUrl;
+          }
+        }
         
         // Save pending download info and prompt review modal
         pendingDownloadQuality = qualityName;
@@ -337,60 +402,118 @@ document.addEventListener('DOMContentLoaded', () => {
     resultsCard.hidden = true;
     resetProgress();
 
-    setTimeout(() => {
-      fetchBtn.disabled = false;
-      fetchBtnText.style.opacity = '1';
-      fetchBtnLoader.hidden = true;
+    // Call Cobalt to analyze the link
+    const payload = {
+      url: url,
+      videoQuality: "720" // default target quality
+    };
 
-      const titles = {
-        video: {
-          youtube: 'How to build beautiful Web interfaces in 2026 (Full Tutorial)',
-          tiktok: 'Funny cat attempts to jump onto a glass table 😹 #funny #cats',
-          instagram: 'Sunset waves on the Amalfi Coast - Cinematic Travel Reels',
-          facebook: 'Amazing street food compilation from around the globe',
-          auto: 'Extracted Social Video Stream'
-        },
-        image: {
-          youtube: 'HD Video Thumbnail - How to build web interfaces (1920x1080)',
-          tiktok: 'Creator Profile Picture (Original High Definition)',
-          instagram: 'Aesthetic minimalist home design photography',
-          facebook: 'Shared Timeline Photo - Beautiful Autumn forest landscape',
-          auto: 'High Resolution Image File'
+    fetchFromCobalt(payload)
+      .then(data => {
+        fetchBtn.disabled = false;
+        fetchBtnText.style.opacity = '1';
+        fetchBtnLoader.hidden = true;
+
+        // Clean filename to use as title
+        let title = data.filename || "Extracted Social Media Video";
+        // Remove extension from filename if present
+        title = title.replace(/\.[^/.]+$/, "");
+
+        const creatorName = platform !== 'auto' ? `@creator_${platform}` : '@web_media';
+
+        videoTitle.textContent = title;
+        metaPlatform.textContent = platformLabel;
+        metaAuthor.textContent = creatorName;
+        
+        const config = platformConfigs[currentMode];
+        previewMediaTypeIcon.setAttribute('d', config.svgIconPath);
+        
+        const durationBadge = document.getElementById('video-duration');
+        if (currentMode === 'video') {
+          durationBadge.textContent = 'HD';
+          durationBadge.style.display = 'block';
+        } else {
+          durationBadge.style.display = 'none';
         }
-      };
 
-      const matchedTitle = titles[currentMode][platform] || titles[currentMode]['auto'];
-      const creatorName = platform !== 'auto' ? `@creator_${platform}` : '@web_media';
+        resultsCard.style.setProperty('--platform-accent', platformColors[platform].accent);
+        resultsCard.style.setProperty('--platform-glow', platformColors[platform].glow);
+        
+        const previewSvg = resultsCard.querySelector('.preview-svg');
+        previewSvg.style.setProperty('--platform-accent', platformColors[platform].accent);
 
-      videoTitle.textContent = matchedTitle;
-      metaPlatform.textContent = platformLabel;
-      metaAuthor.textContent = creatorName;
-      
-      const config = platformConfigs[currentMode];
-      previewMediaTypeIcon.setAttribute('d', config.svgIconPath);
-      
-      const durationBadge = document.getElementById('video-duration');
-      if (currentMode === 'video') {
-        const durationStr = platform === 'youtube' ? '14:20' : platform === 'tiktok' ? '00:15' : '01:05';
-        durationBadge.textContent = durationStr;
-        durationBadge.style.display = 'block';
-      } else {
-        durationBadge.style.display = 'none';
-      }
+        // Store the real download link
+        const downloadUrl = data.url;
 
-      resultsCard.style.setProperty('--platform-accent', platformColors[platform].accent);
-      resultsCard.style.setProperty('--platform-glow', platformColors[platform].glow);
-      
-      const previewSvg = resultsCard.querySelector('.preview-svg');
-      previewSvg.style.setProperty('--platform-accent', platformColors[platform].accent);
+        // Render format options with real download URL
+        renderFormatOptions(currentMode, downloadUrl, url);
+        
+        resultsCard.hidden = false;
+        resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+        
+        showToast('Media details extracted successfully!');
+      })
+      .catch(error => {
+        // FALLBACK: If all Cobalt instances fail or rate-limit, run our beautiful mock extractor!
+        console.warn("Cobalt extraction failed, falling back to mock:", error);
+        
+        setTimeout(() => {
+          fetchBtn.disabled = false;
+          fetchBtnText.style.opacity = '1';
+          fetchBtnLoader.hidden = true;
 
-      renderFormatOptions(currentMode);
-      
-      resultsCard.hidden = false;
-      resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
-      
-      showToast('Media details extracted successfully!');
-    }, 1500);
+          const creatorName = platform !== 'auto' ? `@creator_${platform}` : '@web_media';
+
+          const titles = {
+            video: {
+              youtube: 'How to build beautiful Web interfaces in 2026 (Full Tutorial)',
+              tiktok: 'Funny cat attempts to jump onto a glass table 😹 #funny #cats',
+              instagram: 'Sunset waves on the Amalfi Coast - Cinematic Travel Reels',
+              facebook: 'Amazing street food compilation from around the globe',
+              auto: 'Extracted Social Video Stream'
+            },
+            image: {
+              youtube: 'HD Video Thumbnail - How to build web interfaces (1920x1080)',
+              tiktok: 'Creator Profile Picture (Original High Definition)',
+              instagram: 'Aesthetic minimalist home design photography',
+              facebook: 'Shared Timeline Photo - Beautiful Autumn forest landscape',
+              auto: 'High Resolution Image File'
+            }
+          };
+
+          const matchedTitle = titles[currentMode][platform] || titles[currentMode]['auto'];
+
+          videoTitle.textContent = matchedTitle;
+          metaPlatform.textContent = platformLabel;
+          metaAuthor.textContent = creatorName;
+          
+          const config = platformConfigs[currentMode];
+          previewMediaTypeIcon.setAttribute('d', config.svgIconPath);
+          
+          const durationBadge = document.getElementById('video-duration');
+          if (currentMode === 'video') {
+            const durationStr = platform === 'youtube' ? '14:20' : platform === 'tiktok' ? '00:15' : '01:05';
+            durationBadge.textContent = durationStr;
+            durationBadge.style.display = 'block';
+          } else {
+            durationBadge.style.display = 'none';
+          }
+
+          resultsCard.style.setProperty('--platform-accent', platformColors[platform].accent);
+          resultsCard.style.setProperty('--platform-glow', platformColors[platform].glow);
+          
+          const previewSvg = resultsCard.querySelector('.preview-svg');
+          previewSvg.style.setProperty('--platform-accent', platformColors[platform].accent);
+
+          // In fallback, we pass null as the real download URL, which will trigger the mock canvas/text file generator
+          renderFormatOptions(currentMode, null, url);
+          
+          resultsCard.hidden = false;
+          resultsCard.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+          
+          showToast('Media details compiled successfully (Offline mode).');
+        }, 1200);
+      });
   });
 
   // 5. Review Gating Modal Logic
@@ -485,7 +608,7 @@ document.addEventListener('DOMContentLoaded', () => {
     
     // Trigger download
     if (pendingDownloadQuality && pendingDownloadExt) {
-      startMockDownload(pendingDownloadQuality, pendingDownloadExt);
+      startMockDownload(pendingDownloadQuality, pendingDownloadExt, pendingRealDownloadUrl);
     }
   });
 
@@ -664,7 +787,7 @@ via the VeloDownloader frontend presentation pipeline.
   }
 
   // 8. Simulated Downloader Loops
-  function startMockDownload(qualityName, extension) {
+  function startMockDownload(qualityName, extension, realDownloadUrl) {
     resetProgress();
 
     const optionBtns = optionsListContainer.querySelectorAll('.download-option-btn');
@@ -678,7 +801,7 @@ via the VeloDownloader frontend presentation pipeline.
     progressStatus.textContent = `Connecting to high-speed server...`;
 
     activeDownloadInterval = setInterval(() => {
-      percent += Math.floor(Math.random() * 5) + 3;
+      percent += Math.floor(Math.random() * 8) + 4;
 
       if (percent >= 100) {
         percent = 100;
@@ -690,8 +813,18 @@ via the VeloDownloader frontend presentation pipeline.
         progressStatus.textContent = 'Saving file...';
         
         setTimeout(() => {
-          // Trigger actual device download
-          triggerActualDeviceDownload(qualityName, extension);
+          if (realDownloadUrl) {
+            // Trigger actual media file download!
+            const a = document.createElement('a');
+            a.href = realDownloadUrl;
+            a.target = '_blank';
+            document.body.appendChild(a);
+            a.click();
+            document.body.removeChild(a);
+          } else {
+            // Trigger actual device download
+            triggerActualDeviceDownload(qualityName, extension);
+          }
 
           showToast(`Success! Your ${fileLabel} file has been saved to your device.`, 'success');
           optionBtns.forEach(b => b.disabled = false);
@@ -700,6 +833,7 @@ via the VeloDownloader frontend presentation pipeline.
           // Reset pending download references
           pendingDownloadQuality = null;
           pendingDownloadExt = null;
+          pendingRealDownloadUrl = null;
         }, 800);
       } else {
         if (percent > 10 && percent < 90) {
@@ -710,7 +844,7 @@ via the VeloDownloader frontend presentation pipeline.
         progressPercent.textContent = `${percent}%`;
         progressBarFill.style.width = `${percent}%`;
       }
-    }, 90);
+    }, 80);
   }
 
   cancelDownloadBtn.addEventListener('click', () => {
