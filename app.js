@@ -401,12 +401,12 @@ document.addEventListener('DOMContentLoaded', () => {
     setStarSelection(5); // Default to 5 stars
     
     // Show Modal
-    reviewModalOverlay.hidden = false;
+    reviewModalOverlay.classList.add('active');
     reviewNameInput.focus();
   }
 
   function closeReviewModal() {
-    reviewModalOverlay.hidden = true;
+    reviewModalOverlay.classList.remove('active');
   }
 
   btnCloseReviewModal.addEventListener('click', () => {

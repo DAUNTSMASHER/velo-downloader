@@ -742,11 +742,15 @@ body {
   background: rgba(3, 2, 6, 0.75);
   backdrop-filter: blur(8px);
   -webkit-backdrop-filter: blur(8px);
-  display: flex;
+  display: none;
   align-items: center;
   justify-content: center;
   z-index: 2000;
   animation: fadeIn 0.25s ease-out;
+}
+
+.review-modal-overlay.active {
+  display: flex;
 }
 
 .review-modal {
