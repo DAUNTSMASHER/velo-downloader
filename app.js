@@ -358,70 +358,40 @@ document.addEventListener('DOMContentLoaded', () => {
     resetProgress();
   });
 
-  const COBALT_API = "https://cobaltapi.kittycat.boo/";
+  const BACKEND = "https://velo-downloader-production.up.railway.app";
 
-  // Direct Cobalt API call (no proxy) — returns JSON with tunnel URL + filename
+  // Cobalt API call through Railway (server-side, avoids browser integrity checks)
   async function fetchFromCobalt(payload) {
-    const res = await fetch(COBALT_API, {
+    const res = await fetch(BACKEND + "/download", {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(30000)
     });
-    if (!res.ok) throw new Error(`Cobalt API HTTP ${res.status}`);
+    if (!res.ok) throw new Error(`Server HTTP ${res.status}`);
     const data = await res.json();
-    if (data.status === "error") throw new Error(data.error?.code || "API error");
+    if (data.error) throw new Error(data.error);
     if (!data.url) throw new Error('No URL in response');
     return data;
   }
 
-  // Fetch tunnel URL, create blob, download via anchor click
+  // Download: get tunnel URL from Railway (POST), then proxy it via Railway (GET, instant)
   async function fetchAndDownloadCobalt(inputUrl, quality) {
     try {
-      const q = quality === 'audio' ? '1080' : (quality || '1080');
-      const payload = {
+      const q = quality === 'audio' ? 'audio' : (quality || '1080');
+      const isAudio = quality === 'audio';
+      // Step 1: Get tunnel URL via POST (fast, <15s)
+      const apiData = await fetchFromCobalt({
         url: inputUrl,
-        videoQuality: q,
-        filenameStyle: "basic",
-        disableMetadata: false,
-        ...(quality === 'audio' ? { audioOnly: true } : {})
-      };
-
-      // Step 1: Call Cobalt API to get tunnel URL
-      const apiRes = await fetch(COBALT_API, {
-        method: 'POST',
-        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload),
-        signal: AbortSignal.timeout(30000)
+        videoQuality: isAudio ? '1080' : q,
+        ...(isAudio ? { audioOnly: true } : {})
       });
-      if (!apiRes.ok) throw new Error(`Cobalt API HTTP ${apiRes.status}`);
-      const apiData = await apiRes.json();
-      if (apiData.status === "error") throw new Error(apiData.error?.code || "API error");
-      if (!apiData.url) throw new Error("No tunnel URL returned");
+      if (!apiData.url) throw new Error('No tunnel URL from server');
 
-      // Step 2: Fetch tunnel URL directly (CORS is open)
-      const fileRes = await fetch(apiData.url, {
-        referrerPolicy: 'no-referrer',
-        signal: AbortSignal.timeout(180000)
-      });
-      if (!fileRes.ok) throw new Error(`Tunnel HTTP ${fileRes.status}`);
-
-      // Step 3: Create blob and download
-      const blob = await fileRes.blob();
-      if (blob.size === 0) throw new Error("File is empty (0 bytes)");
-      const objUrl = URL.createObjectURL(blob);
-      const disposition = fileRes.headers.get('content-disposition') || '';
-      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : (apiData.filename || 'download');
-
-      const a = document.createElement('a');
-      a.href = objUrl;
-      a.download = filename;
-      a.style.display = 'none';
-      document.body.appendChild(a);
-      a.click();
-      document.body.removeChild(a);
-      URL.revokeObjectURL(objUrl);
+      // Step 2: Immediately open the Railway proxy for this tunnel (instant, no Cobalt call)
+      const filename = encodeURIComponent(apiData.filename || 'video.mp4');
+      const dlUrl = BACKEND + `/dl?tunnel=${encodeURIComponent(apiData.url)}&filename=${filename}`;
+      window.open(dlUrl, '_blank');
     } catch (err) {
       const errEl = document.getElementById('download-error');
       const errText = document.getElementById('download-error-text');
