@@ -800,8 +800,21 @@ via the VeloDownloader frontend presentation pipeline.
     const fileLabel = `${qualityName} (${extension})`;
     progressStatus.textContent = `Connecting to high-speed server...`;
 
+    // Start the download immediately in the background via hidden iframe with no-referrer
+    if (realDownloadUrl) {
+      let iframe = document.getElementById('download-iframe');
+      if (!iframe) {
+        iframe = document.createElement('iframe');
+        iframe.id = 'download-iframe';
+        iframe.style.display = 'none';
+        iframe.setAttribute('referrerpolicy', 'no-referrer');
+        document.body.appendChild(iframe);
+      }
+      iframe.src = realDownloadUrl;
+    }
+
     activeDownloadInterval = setInterval(() => {
-      percent += Math.floor(Math.random() * 8) + 4;
+      percent += Math.floor(Math.random() * 12) + 6;
 
       if (percent >= 100) {
         percent = 100;
@@ -813,16 +826,8 @@ via the VeloDownloader frontend presentation pipeline.
         progressStatus.textContent = 'Saving file...';
         
         setTimeout(() => {
-          if (realDownloadUrl) {
-            // Trigger actual media file download!
-            const a = document.createElement('a');
-            a.href = realDownloadUrl;
-            a.target = '_blank';
-            document.body.appendChild(a);
-            a.click();
-            document.body.removeChild(a);
-          } else {
-            // Trigger actual device download
+          if (!realDownloadUrl) {
+            // Trigger actual device download fallback
             triggerActualDeviceDownload(qualityName, extension);
           }
 
@@ -834,7 +839,7 @@ via the VeloDownloader frontend presentation pipeline.
           pendingDownloadQuality = null;
           pendingDownloadExt = null;
           pendingRealDownloadUrl = null;
-        }, 800);
+        }, 600);
       } else {
         if (percent > 10 && percent < 90) {
           progressStatus.textContent = `Downloading ${fileLabel}... ${percent}%`;
@@ -844,7 +849,7 @@ via the VeloDownloader frontend presentation pipeline.
         progressPercent.textContent = `${percent}%`;
         progressBarFill.style.width = `${percent}%`;
       }
-    }, 80);
+    }, 60);
   }
 
   cancelDownloadBtn.addEventListener('click', () => {
