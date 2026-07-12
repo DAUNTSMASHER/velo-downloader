@@ -306,9 +306,15 @@ document.addEventListener('DOMContentLoaded', () => {
   // 4. Submit URL & Analysis
   form.addEventListener('submit', (e) => {
     e.preventDefault();
-    const url = urlInput.value.trim();
+    let url = urlInput.value.trim();
 
     if (!url) return;
+
+    // Auto-prepend protocol if missing for better compatibility and prevents validation crash
+    if (!/^https?:\/\//i.test(url)) {
+      url = 'https://' + url;
+      urlInput.value = url;
+    }
 
     try {
       new URL(url);
