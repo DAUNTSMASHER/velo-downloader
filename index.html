@@ -219,66 +219,7 @@
         </div>
       </section>
 
-      <!-- Review Lock Modal Overlay (Appears when clicking download options) -->
-      <div class="review-modal-overlay" id="review-modal-overlay" hidden>
-        <div class="review-modal">
-          <button type="button" class="modal-close-btn" id="btn-close-review-modal" aria-label="Close review modal">
-            <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
-              <line x1="18" y1="6" x2="6" y2="18"/>
-              <line x1="6" y1="6" x2="18" y2="18"/>
-            </svg>
-          </button>
-          
-          <div class="modal-header">
-            <h3 class="modal-title">Unlock Your Download</h3>
-            <p class="modal-description">We provide this premium service 100% free with no registration. Please take 5 seconds to submit a rating & review to start your download!</p>
-          </div>
 
-          <form id="review-form" class="review-form">
-            <!-- Star Rating Selection -->
-            <div class="rating-selection-container">
-              <span class="rating-label">Rating:</span>
-              <div class="star-rating-select" id="star-rating-select">
-                <button type="button" class="star-select-btn" data-value="1" aria-label="1 Star">★</button>
-                <button type="button" class="star-select-btn" data-value="2" aria-label="2 Stars">★</button>
-                <button type="button" class="star-select-btn" data-value="3" aria-label="3 Stars">★</button>
-                <button type="button" class="star-select-btn" data-value="4" aria-label="4 Stars">★</button>
-                <button type="button" class="star-select-btn" data-value="5" aria-label="5 Stars">★</button>
-              </div>
-              <input type="hidden" id="selected-stars-val" value="5" required>
-            </div>
-
-            <!-- Name Input -->
-            <div class="input-group modal-input-group">
-              <input 
-                type="text" 
-                id="review-name" 
-                class="url-input" 
-                placeholder=" " 
-                required 
-                autocomplete="off"
-              >
-              <label for="review-name" class="input-label">Your Name</label>
-            </div>
-
-            <!-- Comment Input -->
-            <div class="input-group modal-input-group">
-              <textarea 
-                id="review-comment" 
-                class="url-input" 
-                placeholder=" " 
-                required 
-                rows="3"
-              ></textarea>
-              <label for="review-comment" class="input-label">Write a quick review about our downloader...</label>
-            </div>
-
-            <button type="submit" class="fetch-btn submit-review-btn">
-              <span>Submit & Start Download</span>
-            </button>
-          </form>
-        </div>
-      </div>
     </main>
 
     <!-- Verified User Reviews & Ratings Section -->
@@ -377,6 +318,67 @@
 
   <!-- Custom Floating Toast Container -->
   <div class="toast-container" id="toast-container"></div>
+
+  <!-- Review Lock Modal Overlay (Appears when clicking download options) -->
+  <div class="review-modal-overlay" id="review-modal-overlay" hidden>
+    <div class="review-modal">
+      <button type="button" class="modal-close-btn" id="btn-close-review-modal" aria-label="Close review modal">
+        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round">
+          <line x1="18" y1="6" x2="6" y2="18"/>
+          <line x1="6" y1="6" x2="18" y2="18"/>
+        </svg>
+      </button>
+      
+      <div class="modal-header">
+        <h3 class="modal-title">Unlock Your Download</h3>
+        <p class="modal-description">We provide this premium service 100% free with no registration. Please take 5 seconds to submit a rating & review to start your download!</p>
+      </div>
+
+      <form id="review-form" class="review-form">
+        <!-- Star Rating Selection -->
+        <div class="rating-selection-container">
+          <span class="rating-label">Rating:</span>
+          <div class="star-rating-select" id="star-rating-select">
+            <button type="button" class="star-select-btn" data-value="1" aria-label="1 Star">★</button>
+            <button type="button" class="star-select-btn" data-value="2" aria-label="2 Stars">★</button>
+            <button type="button" class="star-select-btn" data-value="3" aria-label="3 Stars">★</button>
+            <button type="button" class="star-select-btn" data-value="4" aria-label="4 Stars">★</button>
+            <button type="button" class="star-select-btn" data-value="5" aria-label="5 Stars">★</button>
+          </div>
+          <input type="hidden" id="selected-stars-val" value="5" required>
+        </div>
+
+        <!-- Name Input -->
+        <div class="input-group modal-input-group">
+          <input 
+            type="text" 
+            id="review-name" 
+            class="url-input" 
+            placeholder=" " 
+            required 
+            autocomplete="off"
+          >
+          <label for="review-name" class="input-label">Your Name</label>
+        </div>
+
+        <!-- Comment Input -->
+        <div class="input-group modal-input-group">
+          <textarea 
+            id="review-comment" 
+            class="url-input" 
+            placeholder=" " 
+            required 
+            rows="3"
+          ></textarea>
+          <label for="review-comment" class="input-label">Write a quick review about our downloader...</label>
+        </div>
+
+        <button type="submit" class="fetch-btn submit-review-btn">
+          <span>Submit & Start Download</span>
+        </button>
+      </form>
+    </div>
+  </div>
 
   <!-- Main JavaScript File -->
   <script src="app.js"></script>
