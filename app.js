@@ -358,30 +358,70 @@ document.addEventListener('DOMContentLoaded', () => {
     resetProgress();
   });
 
-  const BACKEND = "https://velo-downloader-production.up.railway.app";
+  const COBALT_API = "https://cobaltapi.kittycat.boo/";
 
-  // Get tunnel URL from server (returns JSON). Must be used immediately before URL expires.
+  // Direct Cobalt API call (no proxy) — returns JSON with tunnel URL + filename
   async function fetchFromCobalt(payload) {
-    const response = await fetch(BACKEND + "/download", {
+    const res = await fetch(COBALT_API, {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
       signal: AbortSignal.timeout(30000)
     });
-    if (!response.ok) throw new Error(`HTTP ${response.status}`);
-    const data = await response.json();
-    if (data.error) throw new Error(data.error);
+    if (!res.ok) throw new Error(`Cobalt API HTTP ${res.status}`);
+    const data = await res.json();
+    if (data.status === "error") throw new Error(data.error?.code || "API error");
     if (!data.url) throw new Error('No URL in response');
     return data;
   }
 
-  // Fetch a fresh tunnel URL and immediately open it for download
-  async function downloadTunnelUrl(inputUrl, quality) {
+  // Fetch tunnel URL, create blob, download via anchor click
+  async function fetchAndDownloadCobalt(inputUrl, quality) {
     try {
-      const isAudio = quality === 'audio';
-      const data = await fetchFromCobalt({ url: inputUrl, videoQuality: isAudio ? '1080' : quality, audioOnly: isAudio || undefined });
-      if (!data.url) throw new Error('No download URL returned');
-      window.open(data.url, '_blank');
+      const q = quality === 'audio' ? '1080' : (quality || '1080');
+      const payload = {
+        url: inputUrl,
+        videoQuality: q,
+        filenameStyle: "basic",
+        disableMetadata: false,
+        ...(quality === 'audio' ? { audioOnly: true } : {})
+      };
+
+      // Step 1: Call Cobalt API to get tunnel URL
+      const apiRes = await fetch(COBALT_API, {
+        method: 'POST',
+        headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
+        body: JSON.stringify(payload),
+        signal: AbortSignal.timeout(30000)
+      });
+      if (!apiRes.ok) throw new Error(`Cobalt API HTTP ${apiRes.status}`);
+      const apiData = await apiRes.json();
+      if (apiData.status === "error") throw new Error(apiData.error?.code || "API error");
+      if (!apiData.url) throw new Error("No tunnel URL returned");
+
+      // Step 2: Fetch tunnel URL directly (CORS is open)
+      const fileRes = await fetch(apiData.url, {
+        referrerPolicy: 'no-referrer',
+        signal: AbortSignal.timeout(180000)
+      });
+      if (!fileRes.ok) throw new Error(`Tunnel HTTP ${fileRes.status}`);
+
+      // Step 3: Create blob and download
+      const blob = await fileRes.blob();
+      if (blob.size === 0) throw new Error("File is empty (0 bytes)");
+      const objUrl = URL.createObjectURL(blob);
+      const disposition = fileRes.headers.get('content-disposition') || '';
+      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
+      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : (apiData.filename || 'download');
+
+      const a = document.createElement('a');
+      a.href = objUrl;
+      a.download = filename;
+      a.style.display = 'none';
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(objUrl);
     } catch (err) {
       const errEl = document.getElementById('download-error');
       const errText = document.getElementById('download-error-text');
@@ -941,7 +981,7 @@ document.addEventListener('DOMContentLoaded', () => {
 
     if (realDownloadUrl) {
       const qMap = { 'MP3': 'audio', 'MP4': '1080', 'WEBM': '1080', 'JPG': '1080', 'PNG': '1080' };
-      downloadTunnelUrl(realDownloadUrl, qMap[extension] || '1080');
+      fetchAndDownloadCobalt(realDownloadUrl, qMap[extension] || '1080');
     } else {
       triggerActualDeviceDownload(qualityName, extension);
     }
