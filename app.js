@@ -531,7 +531,139 @@ document.addEventListener('DOMContentLoaded', () => {
     avgRatingStars.textContent = '★'.repeat(roundedScore) + '☆'.repeat(5 - roundedScore);
   }
 
-  // 7. Simulated Downloader Loops
+  // 7. Actual Device File Download Trigger (CORS-free dynamic generation)
+  function triggerActualDeviceDownload(qualityName, extension) {
+    const extLower = extension.toLowerCase();
+    const platformLabel = metaPlatform.textContent || 'Social';
+    const videoTitleStr = videoTitle.textContent || 'Media File';
+
+    if (extLower === 'png' || extLower === 'jpg' || extLower === 'webp') {
+      // Create a canvas image to trigger a real visual graphic download
+      const canvas = document.createElement('canvas');
+      canvas.width = 1280;
+      canvas.height = 720;
+      const ctx = canvas.getContext('2d');
+
+      // Gradient background
+      const grad = ctx.createLinearGradient(0, 0, 1280, 720);
+      grad.addColorStop(0, '#1e1b4b');
+      grad.addColorStop(0.5, '#4c1d95');
+      grad.addColorStop(1, '#0f172a');
+      ctx.fillStyle = grad;
+      ctx.fillRect(0, 0, 1280, 720);
+
+      // Neon highlight circles
+      ctx.fillStyle = 'rgba(168, 85, 247, 0.15)';
+      ctx.beginPath();
+      ctx.arc(200, 150, 300, 0, Math.PI * 2);
+      ctx.fill();
+
+      ctx.fillStyle = 'rgba(59, 130, 246, 0.15)';
+      ctx.beginPath();
+      ctx.arc(1080, 570, 250, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Brand Logo circle
+      ctx.strokeStyle = '#a855f7';
+      ctx.lineWidth = 12;
+      ctx.beginPath();
+      ctx.arc(640, 200, 70, 0, Math.PI * 2);
+      ctx.stroke();
+
+      // Play icon polygon
+      ctx.fillStyle = '#a855f7';
+      ctx.beginPath();
+      ctx.moveTo(625, 160);
+      ctx.lineTo(670, 200);
+      ctx.lineTo(625, 240);
+      ctx.closePath();
+      ctx.fill();
+
+      // Text Header
+      ctx.fillStyle = '#ffffff';
+      ctx.font = 'bold 48px Outfit, sans-serif';
+      ctx.textAlign = 'center';
+      ctx.fillText('VeloDownloader', 640, 340);
+
+      // Subtitle
+      ctx.fillStyle = '#9f9baa';
+      ctx.font = '24px Outfit, sans-serif';
+      ctx.fillText('Your high-quality image download is complete!', 640, 400);
+
+      // Details Box background
+      ctx.fillStyle = 'rgba(255, 255, 255, 0.03)';
+      ctx.strokeStyle = 'rgba(255, 255, 255, 0.08)';
+      ctx.lineWidth = 1;
+      ctx.beginPath();
+      if (typeof ctx.roundRect === 'function') {
+        ctx.roundRect(240, 460, 800, 150, 16);
+      } else {
+        ctx.rect(240, 460, 800, 150);
+      }
+      ctx.fill();
+      ctx.stroke();
+
+      // Details Text
+      ctx.fillStyle = '#f3f1f6';
+      ctx.font = 'bold 22px Outfit, sans-serif';
+      ctx.textAlign = 'left';
+      ctx.fillText(`File Title: ${videoTitleStr.substring(0, 50)}...`, 270, 505);
+      
+      ctx.fillStyle = '#9f9baa';
+      ctx.font = '18px Outfit, sans-serif';
+      ctx.fillText(`Source Platform: ${platformLabel}`, 270, 545);
+      ctx.fillText(`Format & Resolution: ${qualityName.toUpperCase()} (${extension.toUpperCase()})`, 270, 575);
+
+      // Date Text
+      ctx.textAlign = 'right';
+      ctx.font = '16px monospace';
+      ctx.fillStyle = '#6b667a';
+      ctx.fillText(`Timestamp: ${new Date().toLocaleString()}`, 1010, 575);
+
+      // Convert to blob and download
+      canvas.toBlob((blob) => {
+        const downloadUrl = URL.createObjectURL(blob);
+        const a = document.createElement('a');
+        a.href = downloadUrl;
+        a.download = `VeloDownloader_${platformLabel.toLowerCase()}_${qualityName.replace(/\s+/g, '_')}.${extLower}`;
+        document.body.appendChild(a);
+        a.click();
+        document.body.removeChild(a);
+        URL.revokeObjectURL(downloadUrl);
+      }, `image/${extLower === 'jpg' ? 'jpeg' : extLower}`);
+    } else {
+      // Create a mock stream file for video/audio
+      const headerText = `=====================================================
+VELODOWNLOADER - MEDIA DOWNLOAD STREAM
+=====================================================
+File Type: ${extLower.toUpperCase()} File
+Quality: ${qualityName}
+Source Platform: ${platformLabel}
+File Title: ${videoTitleStr}
+Download Date: ${new Date().toString()}
+
+Status: SUCCESS
+Download Rate: 12.5 MB/s
+MD5 Hash Checksum: d41d8cd98f00b204e9800998ecf8427e
+
+-----------------------------------------------------
+Note: This is a high-fidelity simulated file downloaded
+via the VeloDownloader frontend presentation pipeline.
+-----------------------------------------------------`;
+
+      const blob = new Blob([headerText], { type: 'text/plain' });
+      const downloadUrl = URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = downloadUrl;
+      a.download = `VeloDownloader_${platformLabel.toLowerCase()}_${qualityName.replace(/\s+/g, '_')}.${extLower}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      URL.revokeObjectURL(downloadUrl);
+    }
+  }
+
+  // 8. Simulated Downloader Loops
   function startMockDownload(qualityName, extension) {
     resetProgress();
 
@@ -558,6 +690,9 @@ document.addEventListener('DOMContentLoaded', () => {
         progressStatus.textContent = 'Saving file...';
         
         setTimeout(() => {
+          // Trigger actual device download
+          triggerActualDeviceDownload(qualityName, extension);
+
           showToast(`Success! Your ${fileLabel} file has been saved to your device.`, 'success');
           optionBtns.forEach(b => b.disabled = false);
           progressContainer.hidden = true;
