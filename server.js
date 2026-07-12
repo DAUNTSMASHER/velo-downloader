@@ -1,5 +1,6 @@
 import express from 'express';
 import fetch from 'node-fetch';
+import { Readable } from 'stream';
 
 const app = express();
 app.use(express.json());
@@ -56,7 +57,7 @@ app.post("/download", async (req, res) => {
     "Access-Control-Allow-Origin": "*",
     "Cache-Control": "no-cache"
   });
-  fileRes.body.pipe(res);
+  Readable.fromWeb(fileRes.body).pipe(res);
 });
 
 app.get("/", (_, res) => res.send("Downloader backend is running."));
