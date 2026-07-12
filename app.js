@@ -537,6 +537,10 @@ document.addEventListener('DOMContentLoaded', () => {
     // ---- Step 2: Fetch real download URL from Cobalt ----
     let realDownloadUrl = null;
     let realSizes = {};
+    const errEl = document.getElementById('download-error');
+    const errText = document.getElementById('download-error-text');
+    errEl.hidden = true;
+
     try {
       const data = await fetchFromCobalt({ url, videoQuality: "1080" });
       realDownloadUrl = data.url;
@@ -550,8 +554,9 @@ document.addEventListener('DOMContentLoaded', () => {
       if (realSize) {
         realSizes[config.formats[0].quality] = realSize;
       }
-    } catch {
-      // Cobalt unavailable — will show fallback options
+    } catch (err) {
+      errText.textContent = `${err.name || 'Error'}: ${err.message}`;
+      errEl.hidden = false;
     }
 
     renderFormatOptions(currentMode, realDownloadUrl, url, realSizes);

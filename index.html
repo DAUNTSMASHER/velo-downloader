@@ -54,8 +54,8 @@
   <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
   
   <!-- Custom Styling -->
-  <link rel="stylesheet" href="styles.css?v=5.0">
-  <link rel="stylesheet" href="mobile.css?v=6.0">
+  <link rel="stylesheet" href="styles.css?v=6.0">
+  <link rel="stylesheet" href="mobile.css?v=7.0">
 </head>
 <body>
   <div class="app-container">
@@ -227,6 +227,12 @@
           </div>
         </div>
 
+        <!-- Error Details Panel -->
+        <div class="download-error" id="download-error" hidden>
+          <strong>Download error:</strong> <span id="download-error-text">Something went wrong.</span>
+          <p class="download-error-hint">Copy this error and send it to the developer.</p>
+        </div>
+
         <!-- Download Progress Area -->
         <div class="download-progress-container" id="progress-container" hidden>
           <div class="progress-info">
@@ -344,6 +350,6 @@
   </div>
 
   <!-- Main JavaScript File -->
-  <script src="app.js?v=18.0"></script>
+  <script src="app.js?v=19.0"></script>
 </body>
 </html>
