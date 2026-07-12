@@ -1,11 +1,9 @@
 import express from 'express';
 import fetch from 'node-fetch';
-import { Readable } from 'stream';
 
 const app = express();
 app.use(express.json());
 
-// CORS middleware for cross-origin requests from frontend
 app.use((req, res, next) => {
   const origin = req.headers.origin || '*';
   res.set('Access-Control-Allow-Origin', origin);
@@ -30,7 +28,7 @@ const ENDPOINTS = [
 ];
 
 async function tryCobalt(ep, payload) {
-  const res = await fetch(ep, { method: "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+  const res = await fetch(ep, { method: "POST", headers: { "Content-Type": "application/json", "Accept": "application/json" }, body: JSON.stringify(payload) });
   if (!res.ok) throw new Error(`${res.status}`);
   const data = await res.json();
   if (data.status === "error") throw new Error(data.error?.code);
@@ -47,21 +45,10 @@ app.post("/download", async (req, res) => {
     try { data = await tryCobalt(ep, payload); break; } catch {}
   }
   if (!data?.url) return res.status(502).json({ error: "All endpoints failed" });
-
-  const fileRes = await fetch(data.url);
-  if (!fileRes.ok) return res.status(502).json({ error: "File fetch failed" });
-
-  res.set({
-    "Content-Type": fileRes.headers.get("content-type") || "application/octet-stream",
-    "Content-Disposition": fileRes.headers.get("content-disposition") || `attachment; filename="${data.filename || "video.mp4"}"`,
-    "Access-Control-Allow-Origin": "*",
-    "Cache-Control": "no-cache"
-  });
-  Readable.fromWeb(fileRes.body).pipe(res);
+  res.json(data);
 });
 
 app.get("/", (_, res) => res.send("Downloader backend is running."));
-
 app.get("/health", (_, res) => res.send("OK"));
 
 const port = process.env.PORT || 3000;
