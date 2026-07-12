@@ -391,12 +391,14 @@ document.addEventListener('DOMContentLoaded', () => {
         body: JSON.stringify(payload),
         signal: AbortSignal.timeout(300000)
       });
-      if (!response.ok) throw new Error(`Server HTTP ${response.status}`);
 
       const contentType = response.headers.get('content-type') || '';
-      if (contentType.includes('application/json')) {
-        const errData = await response.json();
-        throw new Error(errData.error || 'Server error');
+
+      // Read JSON error body even on non-ok status
+      if (!response.ok || contentType.includes('application/json')) {
+        let errMsg = `Server HTTP ${response.status}`;
+        try { const errData = await response.json(); errMsg = errData.error || errData.detail || errMsg; } catch {}
+        throw new Error(errMsg);
       }
 
       const blob = await response.blob();
