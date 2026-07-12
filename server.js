@@ -48,6 +48,8 @@ app.post("/download", async (req, res) => {
   fileRes.body.pipe(res);
 });
 
+app.get("/", (_, res) => res.send("Downloader backend is running."));
+
 app.get("/health", (_, res) => res.send("OK"));
 
 const port = process.env.PORT || 3000;
