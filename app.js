@@ -113,7 +113,7 @@ document.addEventListener('DOMContentLoaded', () => {
   }
 
   let pendingRealDownloadUrl = null;
-  let pendingCobaltFilename = '';
+  let pendingDownloadSourceUrl = '';
 
   // Thumbnail display helper
   function setVideoThumbnail(src) {
@@ -358,36 +358,36 @@ document.addEventListener('DOMContentLoaded', () => {
     resetProgress();
   });
 
-  // All Cobalt calls go through our server function which proxies the file
+  const BACKEND = "https://velo-downloader-production.up.railway.app";
+
+  // Get tunnel URL from server (returns JSON). Must be used immediately before URL expires.
   async function fetchFromCobalt(payload) {
-    const response = await fetch("https://velo-downloader-production.up.railway.app/download", {
+    const response = await fetch(BACKEND + "/download", {
       method: 'POST',
       headers: { 'Accept': 'application/json', 'Content-Type': 'application/json' },
       body: JSON.stringify(payload),
-      signal: AbortSignal.timeout(180000)
+      signal: AbortSignal.timeout(30000)
     });
     if (!response.ok) throw new Error(`HTTP ${response.status}`);
-
-    const contentType = response.headers.get('content-type') || '';
-
-    // Server streamed the file — create blob URL
-    if (!contentType.includes('application/json')) {
-      const blob = await response.blob();
-      const objUrl = URL.createObjectURL(blob);
-      const disposition = response.headers.get('content-disposition') || '';
-      const filenameMatch = disposition.match(/filename[^;=\n]*=((['"]).*?\2|[^;\n]*)/);
-      const filename = filenameMatch ? filenameMatch[1].replace(/['"]/g, '') : 'download';
-      const fileSize = parseInt(response.headers.get('content-length') || '0', 10);
-      return { url: objUrl, filename, fileSize, status: 'stream', _isBlob: true };
-    }
-
-    // Server returned JSON (error or tunnel URL)
     const data = await response.json();
-    if (data.error) throw new Error(data.error?.detail ? `${data.error}: ${data.detail}` : data.error);
-    if (data.status === 'stream' || data.status === 'tunnel' || data.status === 'redirect' || data.status === 'picker') {
-      return data;
+    if (data.error) throw new Error(data.error);
+    if (!data.url) throw new Error('No URL in response');
+    return data;
+  }
+
+  // Fetch a fresh tunnel URL and immediately open it for download
+  async function downloadTunnelUrl(inputUrl, quality) {
+    try {
+      const isAudio = quality === 'audio';
+      const data = await fetchFromCobalt({ url: inputUrl, videoQuality: isAudio ? '1080' : quality, audioOnly: isAudio || undefined });
+      if (!data.url) throw new Error('No download URL returned');
+      window.open(data.url, '_blank');
+    } catch (err) {
+      const errEl = document.getElementById('download-error');
+      const errText = document.getElementById('download-error-text');
+      errText.textContent = `Download failed: ${err.name || 'Error'}: ${err.message}`;
+      errEl.hidden = false;
     }
-    throw new Error('No downloadable URL in response');
   }
 
   // Render download option lists
@@ -423,29 +423,7 @@ document.addEventListener('DOMContentLoaded', () => {
         // Reset real download reference
         pendingRealDownloadUrl = null;
 
-        if (realVideoUrl) {
-          // If we have a real download link from Cobalt
-          if (extension === 'MP3') {
-            // If they clicked MP3, fetch the audio format link in the background
-            btn.disabled = true;
-            const originalText = btn.textContent;
-            btn.textContent = 'Fetching...';
-            try {
-              const audioData = await fetchFromCobalt({
-                url: originalInputUrl,
-                audioOnly: true
-              });
-              pendingRealDownloadUrl = audioData.url;
-            } catch (err) {
-              console.warn("Failed to fetch audio stream, falling back to main url", err);
-              pendingRealDownloadUrl = realVideoUrl;
-            }
-            btn.disabled = false;
-            btn.textContent = originalText;
-          } else {
-            pendingRealDownloadUrl = realVideoUrl;
-          }
-        }
+        pendingRealDownloadUrl = originalInputUrl;
         
         // Save pending download info and prompt review modal
         pendingDownloadQuality = qualityName;
@@ -541,25 +519,7 @@ document.addEventListener('DOMContentLoaded', () => {
     const errEl = document.getElementById('download-error');
     const errText = document.getElementById('download-error-text');
     errEl.hidden = true;
-
-    try {
-      const data = await fetchFromCobalt({ url, videoQuality: "1080" });
-      realDownloadUrl = data.url;
-      pendingCobaltFilename = data.filename || '';
-
-      if (!oembedData && data.filename) {
-        let title = data.filename.replace(/\.[^/.]+$/, "");
-        videoTitle.textContent = title;
-      }
-
-      const realSize = data.fileSize || null;
-      if (realSize) {
-        realSizes[config.formats[0].quality] = realSize;
-      }
-    } catch (err) {
-      errText.textContent = `${err.name || 'Error'}: ${err.message}`;
-      errEl.hidden = false;
-    }
+    // Download URL will be fetched fresh at download time
 
     renderFormatOptions(currentMode, realDownloadUrl, url, realSizes);
     fetchBtn.disabled = false;
@@ -980,7 +940,8 @@ document.addEventListener('DOMContentLoaded', () => {
     progressStatus.textContent = `Connecting to server...`;
 
     if (realDownloadUrl) {
-      downloadViaBlob(realDownloadUrl, `${fileLabel}`);
+      const qMap = { 'MP3': 'audio', 'MP4': '1080', 'WEBM': '1080', 'JPG': '1080', 'PNG': '1080' };
+      downloadTunnelUrl(realDownloadUrl, qMap[extension] || '1080');
     } else {
       triggerActualDeviceDownload(qualityName, extension);
     }

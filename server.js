@@ -34,6 +34,7 @@ async function tryCobalt(ep, payload) {
   return data;
 }
 
+// POST endpoint for Cobalt API call only (returns JSON with tunnel URL)
 app.post("/download", async (req, res) => {
   const { url, videoQuality = "1080" } = req.body;
   if (!url) return res.status(400).json({ error: "URL required" });
@@ -43,30 +44,39 @@ app.post("/download", async (req, res) => {
     try { data = await tryCobalt(ep, payload); break; } catch {}
   }
   if (!data?.url) return res.status(502).json({ error: "All endpoints failed" });
+  res.json(data);
+});
 
-  // Fetch the file from the tunnel URL using Railway's IP
+// GET endpoint: navigates here → proxies file → browser downloads
+app.get("/dl", async (req, res) => {
+  const sourceUrl = req.query.url;
+  const quality = req.query.quality || "1080";
+  if (!sourceUrl) return res.status(400).send("Missing ?url=");
+
+  const payload = { url: sourceUrl, videoQuality: quality, filenameStyle: "basic", disableMetadata: false };
+  let data;
+  for (const ep of ENDPOINTS) {
+    try { data = await tryCobalt(ep, payload); break; } catch {}
+  }
+  if (!data?.url) return res.status(502).send("Download source unavailable");
+
   const fileRes = await fetch(data.url);
-  if (!fileRes.ok) return res.status(502).json({ error: "File fetch failed", detail: `HTTP ${fileRes.status}` });
+  if (!fileRes.ok) return res.status(502).send("File unavailable");
 
-  // Stream the file back to the client
   res.set({
     "Content-Type": fileRes.headers.get("content-type") || "application/octet-stream",
     "Content-Disposition": fileRes.headers.get("content-disposition") || `attachment; filename="${data.filename || "video.mp4"}"`,
     "Cache-Control": "no-cache"
   });
 
-  // Use Web Streams API: ReadableStream -> pump to Express response
   const reader = fileRes.body.getReader();
-  res.on('close', () => reader.cancel());
   try {
     while (true) {
       const { done, value } = await reader.read();
       if (done) { res.end(); break; }
       res.write(value);
     }
-  } catch (e) {
-    if (!res.headersSent) res.status(502).json({ error: "Stream failed" });
-  }
+  } catch { res.end(); }
 });
 
 app.get("/", (_, res) => res.send("Downloader backend is running."));
